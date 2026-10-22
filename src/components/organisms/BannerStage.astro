@@ -1,0 +1,1743 @@
+---
+import { getImage } from "astro:assets";
+import BannerWaves from "@components/molecules/BannerWaves.astro";
+import { resolveImageAsset } from "@utils/asset-utils";
+import { url } from "@utils/url-utils";
+import { Icon } from "astro-icon/components";
+import { siteConfig } from "@/config";
+import type { SidebarPage } from "@/types/sidebarConfig";
+
+interface Props {
+	page?: SidebarPage;
+	title?: string;
+	description?: string;
+	date?: string;
+}
+
+const { page, title = "", description = "", date = "" } = Astro.props;
+const normalizedTitle = title.trim();
+const normalizedDescription = description.trim();
+const initialSupportingText =
+	normalizedDescription !== normalizedTitle ? normalizedDescription : "";
+const initialDate = date.trim();
+const initialCopyMode =
+	page === "home" ? "home" : page && normalizedTitle ? "context" : "none";
+const initialLabel =
+	initialCopyMode === "context"
+		? normalizedTitle
+		: siteConfig.banner.homeText.title;
+
+interface ResponsiveBannerImage {
+	fallback: string;
+	avifSrcset: string;
+	webpSrcset: string;
+	width?: number;
+	height?: number;
+}
+
+const optimizeBannerImage = async (
+	src: string,
+	viewport: "desktop" | "mobile",
+): Promise<ResponsiveBannerImage> => {
+	const resolved = await resolveImageAsset(src);
+	if (typeof resolved === "string") {
+		return {
+			fallback: resolved.startsWith("/") ? url(resolved) : resolved,
+			avifSrcset: "",
+			webpSrcset: "",
+		};
+	}
+
+	const requestedWidths =
+		viewport === "desktop" ? [1280, 1600, 1920] : [640, 828, 1080];
+	const widths = [
+		...new Set([
+			...requestedWidths.filter((width) => width <= resolved.width),
+			Math.min(requestedWidths.at(-1) ?? resolved.width, resolved.width),
+		]),
+	].sort((a, b) => a - b);
+	const createCandidates = async (format: "avif" | "webp", quality: number) =>
+		Promise.all(
+			widths.map(async (width) => ({
+				width,
+				image: await getImage({ src: resolved, width, format, quality }),
+			})),
+		);
+	const [avif, webp] = await Promise.all([
+		createCandidates("avif", 55),
+		createCandidates("webp", 68),
+	]);
+	const fallback = webp.at(-1)?.image.src ?? resolved.src;
+	return {
+		fallback,
+		avifSrcset: avif
+			.map(({ image, width }) => `${image.src} ${width}w`)
+			.join(", "),
+		webpSrcset: webp
+			.map(({ image, width }) => `${image.src} ${width}w`)
+			.join(", "),
+		width: resolved.width,
+		height: resolved.height,
+	};
+};
+
+const desktopResponsiveImages = await Promise.all(
+	siteConfig.banner.src.desktop.map((src) =>
+		optimizeBannerImage(src, "desktop"),
+	),
+);
+const mobileResponsiveImages = await Promise.all(
+	siteConfig.banner.src.mobile.map((src) => optimizeBannerImage(src, "mobile")),
+);
+const desktopImages = desktopResponsiveImages.map(({ fallback }) => fallback);
+const mobileImages = mobileResponsiveImages.map(({ fallback }) => fallback);
+const dimOpacity = Math.min(Math.max(siteConfig.banner.dim.opacity, 0), 1);
+const rawSubtitles = siteConfig.banner.homeText.subtitle;
+const subtitleArray = Array.isArray(rawSubtitles)
+	? rawSubtitles
+	: [rawSubtitles];
+const defaultInitialSubtitle = subtitleArray[0] ?? "";
+const typewriter = siteConfig.banner.homeText.typewriter;
+const carouselFadeDuration = Math.min(
+	Math.max(siteConfig.banner.carousel?.fadeDuration ?? 1200, 300),
+	3000,
+);
+const carouselAnimation = siteConfig.banner.carousel?.animation ?? "ken-burns";
+// 视频轮播项：按扩展名识别。SSR 首图必须取第一张「图片」，
+// 避免 <img src>.mp4 的裂图首帧；视频项由运行时接管。
+const isVideoSlide = (src: string) => /\.(mp4|webm|mov)(\?|#|$)/i.test(src);
+const hasSlideVideo =
+	desktopImages.some(isVideoSlide) || mobileImages.some(isVideoSlide);
+const initialDesktopSrc = desktopImages.find((src) => !isVideoSlide(src)) ?? "";
+const initialMobileSrc = mobileImages.find((src) => !isVideoSlide(src)) ?? "";
+const initialSrc = initialDesktopSrc || initialMobileSrc;
+const initialDesktopImage = desktopResponsiveImages.find(
+	({ fallback }) => !isVideoSlide(fallback),
+);
+const initialMobileImage = mobileResponsiveImages.find(
+	({ fallback }) => !isVideoSlide(fallback),
+);
+const initialImage = initialDesktopImage ?? initialMobileImage;
+const initialMobileBanner = page === "home";
+const homeLinks = (siteConfig.banner.homeText.links ?? []).filter(
+	(link) => link.icon && link.url,
+);
+const videoEnabled = Boolean(
+	siteConfig.banner.video?.enable &&
+		(siteConfig.banner.video.src?.length ?? 0) > 0,
+);
+const videoSrcs = videoEnabled
+	? siteConfig.banner.video?.src.map((src) =>
+			src.startsWith("/") ? url(src) : src,
+		)
+	: [];
+const videoMode =
+	siteConfig.banner.video?.mode === "random" ? "random" : "order";
+// 静态 Banner（轮播关闭）主图选择策略：first=第一项（默认）；random=每次访问随机
+const bannerPick = siteConfig.banner.pick === "random" ? "random" : "first";
+---
+
+<section
+	id="banner-wrapper"
+	class="banner-stage"
+	aria-label={initialLabel}
+	data-copy-mode={initialCopyMode}
+	data-context-motion="idle"
+	data-desktop-images={JSON.stringify(desktopImages)}
+	data-mobile-images={JSON.stringify(mobileImages)}
+	data-carousel-enabled={String(siteConfig.banner.carousel.enable)}
+	data-carousel-interval={String(Math.max(siteConfig.banner.carousel.interval, 3000))}
+	data-carousel-fade-duration={String(carouselFadeDuration)}
+	data-carousel-animation={carouselAnimation}
+	data-banner-pick={bannerPick}
+	style={`--banner-fade-duration: ${carouselFadeDuration}ms;`}
+	data-position={siteConfig.banner.position ?? "center"}
+	data-home-title={siteConfig.banner.homeText.title}
+	data-home-subtitles={JSON.stringify(subtitleArray)}
+	data-subtitle-typewriter-enabled={String(typewriter.enable)}
+	data-subtitle-typewriter-loop={String(typewriter.loop)}
+	data-subtitle-typewriter-speed={String(Math.max(typewriter.speed, 1))}
+	data-subtitle-typewriter-delete-speed={String(Math.max(typewriter.deleteSpeed ?? 50, 1))}
+	data-subtitle-typewriter-pause-time={String(Math.max(typewriter.pauseTime ?? 2000, 0))}
+	data-video-enabled={String(videoEnabled)}
+	data-video-srcs={JSON.stringify(videoSrcs)}
+	data-video-mode={videoMode}
+>
+	<div class="banner-stage__media" aria-hidden="true">
+		<picture>
+			{initialDesktopImage?.avifSrcset && (
+				<source media="(min-width: 1024px)" type="image/avif" srcset={initialDesktopImage.avifSrcset} sizes="100vw" />
+			)}
+			{initialDesktopImage?.webpSrcset && (
+				<source media="(min-width: 1024px)" type="image/webp" srcset={initialDesktopImage.webpSrcset} sizes="100vw" />
+			)}
+			{initialDesktopImage && !initialDesktopImage.avifSrcset && !initialDesktopImage.webpSrcset && (
+				<source media="(min-width: 1024px)" srcset={initialDesktopImage.fallback} />
+			)}
+			{initialMobileBanner && initialMobileImage?.avifSrcset && (
+				<source media="(max-width: 1023.98px)" type="image/avif" srcset={initialMobileImage.avifSrcset} sizes="100vw" />
+			)}
+			{initialMobileBanner && initialMobileImage?.webpSrcset && (
+				<source media="(max-width: 1023.98px)" type="image/webp" srcset={initialMobileImage.webpSrcset} sizes="100vw" />
+			)}
+			{initialMobileBanner && initialMobileImage && !initialMobileImage.avifSrcset && !initialMobileImage.webpSrcset && (
+				<source media="(max-width: 1023.98px)" srcset={initialMobileImage.fallback} />
+			)}
+			<img
+				class="banner-stage__image banner-stage__image--front banner-stage__image--active"
+				src={initialMobileBanner ? initialSrc || undefined : undefined}
+				width={initialImage?.width}
+				height={initialImage?.height}
+				fetchpriority="high"
+				loading="eager"
+				decoding="async"
+				alt=""
+				style={`object-position: ${siteConfig.banner.position ?? "center"};`}
+			/>
+		</picture>
+		<img class="banner-stage__image banner-stage__image--back" alt="" />
+		</div>
+		{/* 轮播视频层：banner.src 列表混入视频项时才渲染（零负担：无视频项零 DOM）。
+		    轮到视频时淡入并静音播放，播完自动切下一项；不参与 ken-burns 运镜 */}
+		{hasSlideVideo && (
+			<video
+				class="banner-stage__slide-video"
+				data-banner-slide-video
+				muted
+				playsinline
+				preload="metadata"
+				aria-hidden="true"
+				style={`object-position: ${siteConfig.banner.position ?? "center"};`}
+			></video>
+		)}
+		{videoEnabled && (
+			<video
+				class="banner-stage__video"
+				data-banner-video
+				muted
+				playsinline
+				preload="none"
+				aria-hidden="true"
+				style={`object-position: ${siteConfig.banner.position ?? "center"};`}
+			></video>
+		)}
+		{siteConfig.banner.dim.enable && (
+			<div class="banner-stage__scrim" style={`--banner-dim-opacity: ${dimOpacity}`}></div>
+		)}
+		{siteConfig.banner.homeText.enable && (
+			<div class="banner-stage__copy banner-stage__copy--home" data-banner-home-copy>
+				<h1>{siteConfig.banner.homeText.title}</h1>
+				<p
+					aria-label={defaultInitialSubtitle}
+					data-subtitle-state="complete"
+				>
+					{defaultInitialSubtitle}
+				</p>
+				{homeLinks.length > 0 && (
+					<nav class="banner-stage__links" aria-label={siteConfig.banner.homeText.title}>
+						{homeLinks.map((link) => {
+							const href = link.url.startsWith("/") ? url(link.url) : link.url;
+							const external = link.external ?? /^https?:\/\//.test(link.url);
+							const label = link.ariaLabel ?? link.text;
+						const linkClass = `banner-stage__link${link.text ? "" : " banner-stage__link--icon"}`;
+						return external ? (
+							<a class={linkClass} href={href} target="_blank" rel="noreferrer noopener" aria-label={label} title={link.text ?? label}>
+								<Icon name={link.icon} aria-hidden="true" />
+								{link.text && <span>{link.text}</span>}
+							</a>
+						) : (
+							<a class={linkClass} href={href} aria-label={label} title={link.text ?? label}>
+								<Icon name={link.icon} aria-hidden="true" />
+								{link.text && <span>{link.text}</span>}
+							</a>
+						);
+						})}
+					</nav>
+				)}
+			</div>
+		)}
+	<div class="banner-stage__copy banner-stage__copy--context" data-banner-context>
+		<div class="banner-stage__context-title" data-banner-context-title>
+			{normalizedTitle}
+		</div>
+		<div
+			class="banner-stage__context-details"
+			data-banner-context-details
+			hidden={!initialSupportingText && !initialDate}
+		>
+			<span class="banner-stage__context-divider" aria-hidden="true"></span>
+			<p
+				class="banner-stage__context-description"
+				data-banner-context-description
+				hidden={!initialSupportingText}
+			>
+				<span
+					class="banner-stage__context-quote banner-stage__context-quote--start"
+					aria-hidden="true"
+				>
+					<Icon name="material-symbols:format-quote-rounded" />
+				</span>
+				<span class="banner-stage__context-text" data-banner-context-text>
+					{initialSupportingText}
+				</span>
+				<span
+					class="banner-stage__context-quote banner-stage__context-quote--end"
+					aria-hidden="true"
+				>
+					<Icon name="material-symbols:format-quote-rounded" />
+				</span>
+			</p>
+			<div class="banner-stage__context-meta" data-banner-context-meta hidden={!initialDate}>
+				<Icon name="material-symbols:calendar-today-rounded" aria-hidden="true" />
+				<time data-banner-context-date datetime={initialDate}>{initialDate}</time>
+			</div>
+		</div>
+	</div>
+	{siteConfig.banner.waves.enable && <BannerWaves />}
+	<div class="banner-stage__gradient" aria-hidden="true"></div>
+	{page === "home" && (
+		<button
+			type="button"
+			class="banner-stage__scroll-down"
+			data-banner-scroll-down
+			aria-label="向下滚动查看内容"
+		>
+			<Icon name="material-symbols:keyboard-arrow-down-rounded" aria-hidden="true" />
+		</button>
+	)}
+</section>
+
+<script>
+	import { resolveBannerState, type BannerViewport } from "@utils/banner-state";
+	import {
+		playBannerMotion,
+		type BannerAnimationHandle,
+		type BannerAnimationPreset,
+	} from "@utils/banner-animation";
+	import {
+		EASING_ACCELERATE,
+		EASING_DECELERATE,
+		prefersReducedMotion,
+	} from "@utils/motion";
+	import {
+		beginWallpaperSwitchWindow,
+		getStoredFullscreenLayout,
+		getStoredWallpaperMode,
+	} from "@utils/setting-utils";
+	import {
+		BANNER_CAROUSEL_CHANGE_EVENT,
+		BANNER_GRADIENT_CHANGE_EVENT,
+		BANNER_TITLE_CHANGE_EVENT,
+		BANNER_VIDEO_STATE_CHANGE_EVENT,
+		BANNER_VIDEO_TOGGLE_EVENT,
+		BANNER_WAVES_CHANGE_EVENT,
+		WALLPAPER_FULLSCREEN_LAYOUT_CHANGE_EVENT,
+		WALLPAPER_MODE_CHANGE_EVENT,
+	} from "@constants/constants";
+	import type { SidebarPage } from "@/types/sidebarConfig";
+
+	interface BannerRuntime {
+		activeGroup: BannerViewport | null;
+		activeIndex: number;
+		activeLayer: 0 | 1;
+		images: Record<BannerViewport, string[]>;
+		preloaded: HTMLImageElement | null;
+		subtitleGeneration: number;
+		subtitlePage: SidebarPage | null;
+		subtitleTimer: number | null;
+		subtitleVisible: boolean;
+		contextAnimation: Animation | null;
+		contextTransitionPending: boolean;
+		titleFitFrame: number | null;
+		navigationSyncFrame: number | null;
+		timer: number | null;
+		layerMotions: [BannerAnimationHandle | null, BannerAnimationHandle | null];
+	}
+
+	declare global {
+		interface Window {
+			__shironeBannerBound?: boolean;
+		}
+	}
+
+	const stage = document.getElementById("banner-wrapper") as HTMLElement | null;
+	const layers = stage
+		? [...stage.querySelectorAll<HTMLImageElement>(".banner-stage__image")]
+		: [];
+	// 轮播视频层：banner.src 列表混入视频项时才存在
+	const slideVideo = stage?.querySelector<HTMLVideoElement>(
+		"[data-banner-slide-video]",
+	);
+	// 视频轮播项判定（与 frontmatter 的识别规则一致）
+	function isVideoSource(src: string): boolean {
+		return /\.(mp4|webm|mov)(\?|#|$)/i.test(src);
+	}
+	const subtitle = stage?.querySelector<HTMLParagraphElement>(
+		"[data-banner-home-copy] p",
+	);
+	const contextTitle = stage?.querySelector<HTMLElement>(
+		"[data-banner-context-title]",
+	);
+	const contextDescription = stage?.querySelector<HTMLElement>(
+		"[data-banner-context-description]",
+	);
+	const contextDetails = stage?.querySelector<HTMLElement>(
+		"[data-banner-context-details]",
+	);
+	const contextMeta = stage?.querySelector<HTMLElement>(
+		"[data-banner-context-meta]",
+	);
+	const contextDate = stage?.querySelector<HTMLTimeElement>(
+		"[data-banner-context-date]",
+	);
+	const runtime: BannerRuntime = {
+		activeGroup: null,
+		activeIndex: 0,
+		activeLayer: 0,
+		images: {
+			desktop: parseImages(stage?.dataset.desktopImages),
+			mobile: parseImages(stage?.dataset.mobileImages),
+		},
+		preloaded: null,
+		subtitleGeneration: 0,
+		subtitlePage: null,
+		subtitleTimer: null,
+		subtitleVisible: false,
+		contextAnimation: null,
+		contextTransitionPending: false,
+		titleFitFrame: null,
+		navigationSyncFrame: null,
+		timer: null,
+		layerMotions: [null, null],
+	};
+
+	function parseImages(value: string | undefined): string[] {
+		if (!value) return [];
+		try {
+			const parsed = JSON.parse(value);
+			return Array.isArray(parsed)
+				? parsed.filter((item): item is string => typeof item === "string")
+				: [];
+		} catch {
+			return [];
+		}
+	}
+
+	function currentPage(): SidebarPage | undefined {
+		return document.getElementById("swup-container")?.dataset.currentPage as
+			| SidebarPage
+			| undefined;
+	}
+
+	/** 轮播开关：访客偏好（html data-*）优先，未设置时回退站点配置默认值 */
+	function isCarouselEnabled(): boolean {
+		const attr = document.documentElement.dataset.bannerCarouselEnabled;
+		if (attr !== undefined) return attr === "true";
+		return stage?.dataset.carouselEnabled === "true";
+	}
+
+	function currentViewport(): BannerViewport {
+		return window.matchMedia("(min-width: 1024px)").matches
+			? "desktop"
+			: "mobile";
+	}
+
+	function stopRotation() {
+		if (runtime.timer !== null) window.clearTimeout(runtime.timer);
+		runtime.timer = null;
+	}
+
+	function subtitleSegments(value: string): string[] {
+		if (typeof Intl.Segmenter === "function") {
+			const segmenter = new Intl.Segmenter(undefined, {
+				granularity: "grapheme",
+			});
+			return [...segmenter.segment(value)].map(({ segment }) => segment);
+		}
+		return Array.from(value);
+	}
+
+	function getSubtitleTexts(): string[] {
+		try {
+			const parsed = JSON.parse(stage?.dataset.homeSubtitles || "[]");
+			if (Array.isArray(parsed) && parsed.length > 0) {
+				return parsed.filter(Boolean);
+			}
+		} catch {
+			// ignore
+		}
+		const initial =
+			subtitle?.getAttribute("aria-label") || subtitle?.textContent || "";
+		return initial ? [initial] : [];
+	}
+
+	function stopSubtitleTyping() {
+		runtime.subtitleGeneration += 1;
+		if (runtime.subtitleTimer !== null) {
+			window.clearTimeout(runtime.subtitleTimer);
+		}
+		runtime.subtitleTimer = null;
+		runtime.subtitleVisible = false;
+		if (subtitle) {
+			const texts = getSubtitleTexts();
+			subtitle.textContent = texts[0] || "";
+			subtitle.dataset.subtitleState = "complete";
+		}
+	}
+
+	function showSubtitleImmediately() {
+		stopSubtitleTyping();
+		runtime.subtitleVisible = true;
+		if (subtitle) {
+			const texts = getSubtitleTexts();
+			subtitle.textContent = texts[0] || "";
+			subtitle.dataset.subtitleState = "complete";
+		}
+	}
+
+	function readMotionDuration(property: string, fallback: number): number {
+		const value = Number.parseFloat(
+			getComputedStyle(document.documentElement).getPropertyValue(property),
+		);
+		return Number.isFinite(value) && value > 0 ? value : fallback;
+	}
+
+	function startSubtitleTyping(page: SidebarPage | undefined) {
+		if (!subtitle || !page || page !== "home") {
+			stopSubtitleTyping();
+			runtime.subtitlePage = page ?? null;
+			return;
+		}
+
+		if (
+			runtime.subtitlePage === page &&
+			runtime.subtitleVisible &&
+			!(prefersReducedMotion() && subtitle.dataset.subtitleState === "typing")
+		)
+			return;
+		runtime.subtitlePage = page;
+		if (
+			stage?.dataset.subtitleTypewriterEnabled !== "true" ||
+			prefersReducedMotion()
+		) {
+			showSubtitleImmediately();
+			return;
+		}
+
+		runtime.subtitleGeneration += 1;
+		const generation = runtime.subtitleGeneration;
+		if (runtime.subtitleTimer !== null) {
+			window.clearTimeout(runtime.subtitleTimer);
+		}
+		runtime.subtitleTimer = null;
+		runtime.subtitleVisible = true;
+
+		const texts = getSubtitleTexts();
+		if (!texts.length) {
+			subtitle.textContent = "";
+			subtitle.dataset.subtitleState = "complete";
+			return;
+		}
+
+		const loop = stage?.dataset.subtitleTypewriterLoop === "true";
+		const configuredSpeed = Number.parseFloat(
+			stage?.dataset.subtitleTypewriterSpeed || "120",
+		);
+		const speed = Number.isFinite(configuredSpeed)
+			? Math.max(configuredSpeed, 1)
+			: 120;
+		const configuredDeleteSpeed = Number.parseFloat(
+			stage?.dataset.subtitleTypewriterDeleteSpeed || "50",
+		);
+		const deleteSpeed = Number.isFinite(configuredDeleteSpeed)
+			? Math.max(configuredDeleteSpeed, 1)
+			: 50;
+		const configuredPauseTime = Number.parseFloat(
+			stage?.dataset.subtitleTypewriterPauseTime || "2000",
+		);
+		const pauseTime = Number.isFinite(configuredPauseTime)
+			? Math.max(configuredPauseTime, 0)
+			: 2000;
+
+		let textIndex = 0;
+		let charIndex = 0;
+		let isDeleting = false;
+		subtitle.textContent = "";
+		subtitle.dataset.subtitleState = "typing";
+
+		const step = () => {
+			if (generation !== runtime.subtitleGeneration || !subtitle) return;
+
+			const currentText = texts[textIndex] || "";
+			const segments = subtitleSegments(currentText);
+
+			if (isDeleting) {
+				if (charIndex > 0) {
+					charIndex -= 1;
+					subtitle.textContent = segments.slice(0, charIndex).join("");
+					runtime.subtitleTimer = window.setTimeout(step, deleteSpeed);
+				} else {
+					// 当前句子已反向回退完毕，切换至下一条并开始正向打字
+					isDeleting = false;
+					textIndex = (textIndex + 1) % texts.length;
+					runtime.subtitleTimer = window.setTimeout(step, speed);
+				}
+			} else {
+				if (charIndex < segments.length) {
+					charIndex += 1;
+					subtitle.textContent = segments.slice(0, charIndex).join("");
+					runtime.subtitleTimer = window.setTimeout(step, speed);
+				} else {
+					// 当前句子完整打字呈现
+					subtitle.dataset.subtitleState = "complete";
+					// 若配置了多句或者启用了循环回退
+					if (texts.length > 1 || loop) {
+						isDeleting = true;
+						runtime.subtitleTimer = window.setTimeout(() => {
+							if (generation !== runtime.subtitleGeneration || !subtitle) return;
+							subtitle.dataset.subtitleState = "typing";
+							step();
+						}, pauseTime);
+					} else {
+						runtime.subtitleTimer = null;
+					}
+				}
+			}
+		};
+
+		step();
+	}
+
+	function preloadNext(images: string[], index: number) {
+		if (images.length < 2) return;
+		// 下一项是视频：交给轮播视频层的 preload="metadata" 预取元数据
+		if (isVideoSource(images[(index + 1) % images.length])) return;
+		const schedulePreload = () => {
+			const load = () => {
+				runtime.preloaded = new Image();
+				runtime.preloaded.src = images[(index + 1) % images.length];
+			};
+			if (typeof window.requestIdleCallback === "function") {
+				window.requestIdleCallback(load, { timeout: 3000 });
+			} else {
+				window.setTimeout(load, 1500);
+			}
+		};
+		const current = layers[runtime.activeLayer];
+		if (current && !current.complete) {
+			current.addEventListener("load", schedulePreload, { once: true });
+		} else {
+			schedulePreload();
+		}
+	}
+
+	function getCarouselInterval(): number {
+		return Math.max(
+			Number.parseInt(stage?.dataset.carouselInterval || "6000", 10),
+			3000,
+		);
+	}
+
+	function getFadeDuration(): number {
+		return Math.max(
+			Number.parseInt(stage?.dataset.carouselFadeDuration || "1200", 10),
+			300,
+		);
+	}
+
+	function getAnimationPreset(): BannerAnimationPreset {
+		return (
+			(stage?.dataset.carouselAnimation as BannerAnimationPreset) ||
+			"ken-burns"
+		);
+	}
+
+	function stopLayerMotions() {
+		runtime.layerMotions[0]?.cancel();
+		runtime.layerMotions[0] = null;
+		runtime.layerMotions[1]?.cancel();
+		runtime.layerMotions[1] = null;
+	}
+
+	function pauseLayerMotions() {
+		runtime.layerMotions[0]?.pause();
+		runtime.layerMotions[1]?.pause();
+	}
+
+	function resumeLayerMotions() {
+		runtime.layerMotions[0]?.resume();
+		runtime.layerMotions[1]?.resume();
+	}
+
+	function showImage(src: string, immediate: boolean) {
+		if (!layers.length) return;
+		// 视频项：交给专用视频层（淡入 + 静音播放，播完由 ended 驱动切换）
+		if (isVideoSource(src)) {
+			showSlideVideo(src, immediate);
+			return;
+		}
+		hideSlideVideo(immediate);
+		const nextLayer = immediate ? runtime.activeLayer : runtime.activeLayer === 0 ? 1 : 0;
+		const next = layers[nextLayer];
+		const previous = layers[runtime.activeLayer];
+		if (next.src !== new URL(src, window.location.href).href) next.src = src;
+		next.style.objectPosition = stage?.dataset.position || "center";
+
+		const interval = getCarouselInterval();
+		const fadeDuration = getFadeDuration();
+		const motionDuration = interval + fadeDuration;
+		const preset = getAnimationPreset();
+
+		runtime.layerMotions[nextLayer]?.cancel();
+		const startMotion = () => {
+			if (runtime.activeLayer !== nextLayer || prefersReducedMotion()) return;
+			runtime.layerMotions[nextLayer]?.cancel();
+			runtime.layerMotions[nextLayer] = playBannerMotion({
+				element: next,
+				preset,
+				index: runtime.activeIndex,
+				durationMs: motionDuration,
+			});
+		};
+
+		if (immediate || prefersReducedMotion()) {
+			for (let i = 0; i < layers.length; i += 1) {
+				if (i !== nextLayer) {
+					layers[i].classList.remove("banner-stage__image--active");
+					layers[i].classList.remove("banner-stage__image--fading");
+					runtime.layerMotions[i]?.cancel();
+					runtime.layerMotions[i] = null;
+				}
+			}
+			next.classList.add("banner-stage__image--active");
+			next.classList.remove("banner-stage__image--fading");
+		} else {
+			next.classList.add("banner-stage__image--active");
+			next.classList.add("banner-stage__image--fading");
+			previous.classList.remove("banner-stage__image--active");
+			previous.classList.add("banner-stage__image--fading");
+		}
+		runtime.activeLayer = nextLayer;
+		if (!immediate) startMotion();
+	}
+
+	/** 轮到视频项：图片层淡出，视频层淡入并静音播放（无固定间隔，播完切下一项） */
+	function showSlideVideo(src: string, immediate: boolean) {
+		if (!slideVideo) return;
+		const previous = layers[runtime.activeLayer];
+		previous.classList.remove("banner-stage__image--active");
+		if (immediate) {
+			previous.classList.remove("banner-stage__image--fading");
+		} else {
+			previous.classList.add("banner-stage__image--fading");
+		}
+		runtime.layerMotions[runtime.activeLayer]?.cancel();
+		runtime.layerMotions[runtime.activeLayer] = null;
+
+		if (slideVideo.src !== new URL(src, window.location.href).href) {
+			slideVideo.src = src;
+		}
+		// 同组唯一项时循环播放；否则播完由 ended 前进到下一项。
+		// 静态 Banner（轮播关闭，随机主图）时播完停在最后一帧，不循环不前进。
+		slideVideo.loop = isCarouselEnabled()
+			? runtime.images[currentViewport()].length < 2
+			: false;
+		slideVideo.classList.add("banner-stage__slide-video--active");
+		slideVideo.classList.toggle(
+			"banner-stage__slide-video--fading",
+			!immediate,
+		);
+		void slideVideo.play().catch(() => {
+			// 自动播放被拒（少见：非手势触发的静音播放也通常放行）：静置显示首帧
+		});
+	}
+
+	/** 离开视频项：视频层淡出并暂停，交还图片层 */
+	function hideSlideVideo(immediate: boolean) {
+		if (
+			!slideVideo ||
+			!slideVideo.classList.contains("banner-stage__slide-video--active")
+		) {
+			return;
+		}
+		slideVideo.pause();
+		slideVideo.classList.remove("banner-stage__slide-video--active");
+		slideVideo.classList.toggle(
+			"banner-stage__slide-video--fading",
+			!immediate,
+		);
+	}
+
+	/** 视频播完/出错：前进到轮播的下一项（静态 Banner 不前进，停在最后一帧） */
+	function advanceFromSlideVideo() {
+		if (!isCarouselEnabled()) return;
+		const images = runtime.images[currentViewport()];
+		if (images.length < 2) return;
+		runtime.activeIndex = (runtime.activeIndex + 1) % images.length;
+		showImage(images[runtime.activeIndex], false);
+		preloadNext(images, runtime.activeIndex);
+		scheduleRotation(images);
+	}
+
+	function scheduleRotation(images: string[]) {
+		stopRotation();
+		// 当前项是视频时不按固定间隔切换：由视频 ended 事件驱动前进
+		if (isVideoSource(images[runtime.activeIndex])) return;
+		const delay = Number.parseInt(stage?.dataset.carouselInterval || "6000", 10);
+		runtime.timer = window.setTimeout(() => {
+			runtime.activeIndex = (runtime.activeIndex + 1) % images.length;
+			showImage(images[runtime.activeIndex], false);
+			preloadNext(images, runtime.activeIndex);
+			syncBanner();
+		}, delay);
+	}
+
+	function canAnimateBannerContext(): boolean {
+		return (
+			currentViewport() === "desktop" &&
+			stage?.hidden === false &&
+			!prefersReducedMotion()
+		);
+	}
+
+	function settleContextAnimation() {
+		runtime.contextAnimation?.cancel();
+		runtime.contextAnimation = null;
+		if (!stage) return;
+		stage.dataset.contextMotion = "idle";
+	}
+
+	function animateContextOut() {
+		runtime.contextTransitionPending = canAnimateBannerContext();
+		settleContextAnimation();
+		if (
+			!runtime.contextTransitionPending ||
+			stage?.dataset.copyMode !== "context" ||
+			!contextTitle
+		)
+			return;
+		const copy = contextTitle.closest<HTMLElement>("[data-banner-context]");
+		if (!copy) return;
+		stage!.dataset.contextMotion = "out";
+		runtime.contextAnimation = copy.animate(
+			[
+				{ opacity: 1, transform: "translate(-50%, -50%) translateY(0)" },
+				{ opacity: 0, transform: "translate(-50%, -50%) translateY(-0.25rem)" },
+			],
+			{
+				duration: readMotionDuration("--m3e-duration-short", 150),
+				easing: EASING_ACCELERATE,
+				fill: "forwards",
+			},
+		);
+	}
+
+	function animateContextIn() {
+		const shouldAnimate =
+			runtime.contextTransitionPending &&
+			canAnimateBannerContext() &&
+			stage?.dataset.copyMode === "context";
+		runtime.contextTransitionPending = false;
+		settleContextAnimation();
+		if (!shouldAnimate || !contextTitle) return;
+		const copy = contextTitle.closest<HTMLElement>("[data-banner-context]");
+		if (!copy) return;
+		stage!.dataset.contextMotion = "in";
+		runtime.contextAnimation = copy.animate(
+			[
+				{ opacity: 0, transform: "translate(-50%, -50%) translateY(0.25rem)" },
+				{ opacity: 1, transform: "translate(-50%, -50%) translateY(0)" },
+			],
+			{
+				duration: readMotionDuration("--m3e-duration-medium", 250),
+				easing: EASING_DECELERATE,
+			},
+		);
+		runtime.contextAnimation.onfinish = settleContextAnimation;
+		runtime.contextAnimation.oncancel = () => {
+			runtime.contextAnimation = null;
+		};
+	}
+
+	function fitContextTitle() {
+		if (!contextTitle || !stage || stage.dataset.copyMode !== "context") return;
+		contextTitle.style.removeProperty("font-size");
+		contextTitle.dataset.titleFit = "full";
+		if (contextTitle.scrollWidth <= contextTitle.clientWidth) return;
+
+		const rootFontSize = Number.parseFloat(
+			getComputedStyle(document.documentElement).fontSize,
+		);
+		const maximum = Number.parseFloat(getComputedStyle(contextTitle).fontSize);
+		const minimum = Number.isFinite(rootFontSize) ? rootFontSize * 2.25 : 36;
+		let lower = Math.min(minimum, maximum);
+		let upper = maximum;
+
+		contextTitle.dataset.titleFit = "scaled";
+		for (let step = 0; step < 8; step += 1) {
+			const candidate = (lower + upper) / 2;
+			contextTitle.style.fontSize = `${candidate}px`;
+			if (contextTitle.scrollWidth <= contextTitle.clientWidth) lower = candidate;
+			else upper = candidate;
+		}
+		contextTitle.style.fontSize = `${lower}px`;
+		if (contextTitle.scrollWidth > contextTitle.clientWidth) {
+			contextTitle.style.removeProperty("font-size");
+			contextTitle.dataset.titleFit = "wrapped";
+		}
+	}
+
+	function scheduleContextTitleFit() {
+		if (runtime.titleFitFrame !== null) {
+			window.cancelAnimationFrame(runtime.titleFitFrame);
+		}
+		runtime.titleFitFrame = window.requestAnimationFrame(() => {
+			runtime.titleFitFrame = null;
+			fitContextTitle();
+		});
+	}
+
+	interface BannerContext {
+		title: string;
+		description: string;
+		date: string;
+	}
+
+	function readContext(): BannerContext {
+		const container = document.getElementById("swup-container");
+		return {
+			title: container?.dataset.bannerTitle?.trim() || "",
+			description: container?.dataset.bannerDescription?.trim() || "",
+			date: container?.dataset.bannerDate?.trim() || "",
+		};
+	}
+
+	function syncContext(context: BannerContext) {
+		if (
+			!stage ||
+			!contextTitle ||
+			!contextDescription ||
+			!contextDetails ||
+			!contextMeta ||
+			!contextDate
+		)
+			return false;
+		const title = context.title;
+		const description = context.description !== title ? context.description : "";
+		const date = context.date;
+		contextTitle.style.removeProperty("font-size");
+		contextTitle.dataset.titleFit = "full";
+		contextTitle.textContent = title;
+		// 描述文本在内层 span 上改写：外层是引言框（含首尾引号装饰图标）
+		const descriptionText = contextDescription.querySelector<HTMLElement>(
+			"[data-banner-context-text]",
+		);
+		if (descriptionText) descriptionText.textContent = description;
+		contextDescription.hidden = !description;
+		contextDate.textContent = date;
+		contextDate.dateTime = date;
+		contextMeta.hidden = !date;
+		contextDetails.hidden = !description && !date;
+		scheduleContextTitleFit();
+		return Boolean(title);
+	}
+
+	function syncBanner(pageOverride?: SidebarPage, contextOverride?: BannerContext) {
+		if (!stage) return;
+		const viewport = currentViewport();
+		const images = runtime.images[viewport];
+		const page = pageOverride ?? currentPage();
+		const context = contextOverride ?? readContext();
+		const state = resolveBannerState({
+			mode: getStoredWallpaperMode(),
+			fullscreenLayout: getStoredFullscreenLayout(),
+			page,
+			viewport,
+			imageCount: images.length,
+			carouselEnabled: isCarouselEnabled(),
+			reducedMotion: prefersReducedMotion(),
+			contextTitle: context.title,
+		});
+
+		document.body.dataset.currentPage = page || "";
+		document.body.dataset.bannerVisible = String(state.visible);
+		document.body.dataset.bannerLayout = state.contentLayout;
+		document.body.dataset.bannerTopAppBar = String(state.transparentTopAppBar);
+		stage.hidden = !state.visible;
+		if (stage.hidden) {
+			pauseBannerVideo();
+			slideVideo?.pause();
+		}
+		const hasContext =
+			state.copyMode === "context" && syncContext(context);
+		const copyMode = state.copyMode === "home" ? "home" : hasContext ? "context" : "none";
+		stage.dataset.copyMode = copyMode;
+		stage.setAttribute(
+			"aria-label",
+			copyMode === "context"
+				? contextTitle?.textContent || ""
+				: stage.dataset.homeTitle || "",
+		);
+		if (copyMode === "home") startSubtitleTyping(page);
+		else stopSubtitleTyping();
+
+		if (!state.visible || !state.assetGroup) {
+			stopRotation();
+			stopLayerMotions();
+			return;
+		}
+
+		if (runtime.activeGroup !== state.assetGroup) {
+			runtime.activeGroup = state.assetGroup;
+			// 静态 Banner（轮播关闭）且配置 pick=random 时，每次访问随机选一项
+			// 作为主图；轮播开启或列表只有一项时固定第一项。
+			const startIndex =
+				!state.rotate &&
+				stage?.dataset.bannerPick === "random" &&
+				images.length > 1
+					? Math.floor(Math.random() * images.length)
+					: 0;
+			runtime.activeIndex = startIndex;
+			showImage(images[startIndex], true);
+			layers[runtime.activeLayer]?.setAttribute("fetchpriority", "high");
+			preloadNext(images, startIndex);
+		}
+
+		if (state.rotate && !document.hidden) scheduleRotation(images);
+		else stopRotation();
+	}
+
+	function scheduleNavigationSync(animateIn = false) {
+		if (runtime.navigationSyncFrame !== null) {
+			window.cancelAnimationFrame(runtime.navigationSyncFrame);
+		}
+		runtime.navigationSyncFrame = window.requestAnimationFrame(() => {
+			runtime.navigationSyncFrame = null;
+			// Swup 切页时 body 页面属性变化会重算 --banner-stage-height
+			// （首页 ↔ 文章页横幅高度不同）。先打开几何过渡窗口再落位，
+			// 让舞台高度与 #main-layout top 的既有过渡同步，避免壁纸
+			// 瞬间缩短/拉长而内容还在动画的空档。
+			beginWallpaperSwitchWindow();
+			syncBanner();
+			updateHeroTitleParallax();
+			if (animateIn) animateContextIn();
+		});
+	}
+
+	// ---------------------------------------------------------------------
+	// 横幅背景视频：悬浮控制流（FAB）↔ 舞台视频元素。
+	// preload="none"——首次点击播放才发起视频请求；播放期间挂起图片轮播，
+	// 暂停后恢复；多源按 order/random 自动接续；舞台隐藏（纯色模式等）即暂停。
+	// ---------------------------------------------------------------------
+	const video = stage?.querySelector<HTMLVideoElement>("[data-banner-video]");
+	const videoSrcs = parseImages(stage?.dataset.videoSrcs);
+	const videoMode = stage?.dataset.videoMode === "random" ? "random" : "order";
+	let videoIndex = 0;
+
+	function dispatchVideoState(playing: boolean) {
+		window.dispatchEvent(
+			new CustomEvent(BANNER_VIDEO_STATE_CHANGE_EVENT, {
+				detail: { playing },
+			}),
+		);
+	}
+
+	function pauseBannerVideo() {
+		if (video && !video.paused) video.pause();
+	}
+
+	function advanceVideoSource(offset: number) {
+		if (!video || videoSrcs.length === 0) return;
+		if (videoSrcs.length === 1) {
+			videoIndex = 0;
+		} else if (videoMode === "random") {
+			// 随机接续时避免与当前源重复
+			let next = videoIndex;
+			while (next === videoIndex) {
+				next = Math.floor(Math.random() * videoSrcs.length);
+			}
+			videoIndex = next;
+		} else {
+			videoIndex = (videoIndex + offset + videoSrcs.length) % videoSrcs.length;
+		}
+		video.src = videoSrcs[videoIndex];
+	}
+
+	async function playBannerVideo() {
+		if (!video || stage?.hidden) return;
+		if (!video.src) advanceVideoSource(0);
+		// 播放由用户点击触发（处于用户手势上下文），优先带声音播放
+		video.muted = false;
+		try {
+			await video.play();
+			return;
+		} catch {
+			// 浏览器自动播放策略拒绝（无有效手势等）：降级为静音重试
+		}
+		video.muted = true;
+		try {
+			await video.play();
+		} catch {
+			// 源不可用等原因：回退到暂停态
+			dispatchVideoState(false);
+		}
+	}
+
+	function toggleBannerVideo() {
+		if (!video) return;
+		if (video.paused) void playBannerVideo();
+		else video.pause();
+	}
+
+	if (video) {
+		// 单源循环播放；多源由 ended 事件按模式接续
+		video.loop = videoSrcs.length === 1;
+		video.addEventListener("play", () => {
+			video.classList.add("banner-stage__video--active");
+			// 视频成为视觉主体：挂起图片轮播与运镜；轮播视频层让位暂停
+			stopRotation();
+			stopLayerMotions();
+			slideVideo?.pause();
+			slideVideo?.classList.remove("banner-stage__slide-video--active");
+			dispatchVideoState(true);
+		});
+		video.addEventListener("pause", () => {
+			video.classList.remove("banner-stage__video--active");
+			dispatchVideoState(false);
+			if (!stage?.hidden) syncBanner();
+		});
+		video.addEventListener("ended", () => {
+			advanceVideoSource(1);
+			void playBannerVideo();
+		});
+		video.addEventListener("error", () => {
+			dispatchVideoState(false);
+		});
+		window.addEventListener(BANNER_VIDEO_TOGGLE_EVENT, () => toggleBannerVideo());
+	}
+
+	// 轮播视频层：播完或出错自动前进到下一项；出错避免卡死
+	if (slideVideo) {
+		slideVideo.addEventListener("ended", advanceFromSlideVideo);
+		slideVideo.addEventListener("error", advanceFromSlideVideo);
+	}
+
+	// ---------------------------------------------------------------------
+	// 全屏壁纸 hero 布局：横幅文案（首页标题 / 非首页上下文标题）随滚动平滑
+	// 上移并淡出（壁纸保持 fixed，文案以滚动速度上移、滚动半个视口后完全
+	// 透明，与参考站一致）。其余模式 / 过渡期一律复位，交还 CSS 控制。
+	// ---------------------------------------------------------------------
+	const HERO_TITLE_FADE_RATIO = 0.5;
+	let heroParallaxTicking = false;
+	let lastHeroTransform = "";
+	let lastHeroOpacity = "";
+
+	function isHeroTitleParallaxActive(): boolean {
+		const html = document.documentElement;
+		return (
+			html.dataset.wallpaperMode === "fullscreen" &&
+			html.dataset.fullscreenLayout === "hero"
+		);
+	}
+
+	/** 记忆化写入：值未变化时跳过合成层属性的逐帧更新。
+	 *  首页写 home 文案；非首页写上下文文案（保留其 CSS 居中位移前缀） */
+	function applyHeroTitleParallax(transform: string, opacity: string) {
+		if (transform === lastHeroTransform && opacity === lastHeroOpacity) return;
+		lastHeroTransform = transform;
+		lastHeroOpacity = opacity;
+		const homeCopy = stage?.querySelector<HTMLElement>(
+			"[data-banner-home-copy]",
+		);
+		if (homeCopy) {
+			homeCopy.style.transform = transform;
+			homeCopy.style.opacity = opacity;
+		}
+		const contextCopy = stage?.querySelector<HTMLElement>(
+			"[data-banner-context]",
+		);
+		if (contextCopy) {
+			contextCopy.style.transform = transform
+				? `translate(-50%, -50%) ${transform}`
+				: "";
+			contextCopy.style.opacity = opacity;
+		}
+	}
+
+	function updateHeroTitleParallax() {
+		heroParallaxTicking = false;
+		if (!isHeroTitleParallaxActive()) {
+			applyHeroTitleParallax("", "");
+			return;
+		}
+		const scrollY = window.scrollY;
+		// Math.max 防零视口（极端环境 innerHeight=0 时避免 0/0=NaN 写入非法透明度）
+		const fadeScroll = Math.max(window.innerHeight * HERO_TITLE_FADE_RATIO, 1);
+		const ratio = Math.min(scrollY / fadeScroll, 1);
+		applyHeroTitleParallax(`translateY(${-scrollY}px)`, String(1 - ratio));
+	}
+
+	function requestHeroTitleParallax() {
+		if (heroParallaxTicking) return;
+		heroParallaxTicking = true;
+		window.requestAnimationFrame(updateHeroTitleParallax);
+	}
+
+	// ---------------------------------------------------------------------
+	// 全屏壁纸 classic 布局：首屏底部只留下滑箭头，水波纹/渐变过渡在滚动后
+	// 才淡入。滚过阈值后箭头淡出，body[data-banner-reveal] 驱动波浪/渐变
+	// 淡入；其余模式一律复位（箭头由 CSS 控制仅 classic 首页显示）。
+	// ---------------------------------------------------------------------
+	const CLASSIC_SCROLL_REVEAL_THRESHOLD = 100;
+	let classicScrollTicking = false;
+
+	function isClassicHomeLayout(): boolean {
+		const html = document.documentElement;
+		return (
+			html.dataset.wallpaperMode === "fullscreen" &&
+			html.dataset.fullscreenLayout === "classic" &&
+			document.body.dataset.currentPage === "home"
+		);
+	}
+
+	function updateClassicScrollState() {
+		classicScrollTicking = false;
+		const scrollDown = stage?.querySelector<HTMLElement>(
+			"[data-banner-scroll-down]",
+		);
+		if (!isClassicHomeLayout()) {
+			document.body.removeAttribute("data-banner-reveal");
+			scrollDown?.classList.remove("banner-stage__scroll-down--hide");
+			return;
+		}
+		const scrolled = window.scrollY > CLASSIC_SCROLL_REVEAL_THRESHOLD;
+		document.body.toggleAttribute("data-banner-reveal", scrolled);
+		scrollDown?.classList.toggle(
+			"banner-stage__scroll-down--hide",
+			scrolled,
+		);
+	}
+
+	function requestClassicScrollState() {
+		if (classicScrollTicking) return;
+		classicScrollTicking = true;
+		window.requestAnimationFrame(updateClassicScrollState);
+	}
+
+	// ---------------------------------------------------------------------
+	// 壁纸模式 / 布局切换的几何平滑过渡由 setting-utils 编排：先打
+	// data-wallpaper-switching 激活高度/透明度过渡，再立即落位新几何
+	// （html[data-wallpaper-mode] 驱动），舞台全程可见不闪白。
+	// 这里只响应变更事件做状态同步（可见性 / 文案 / 轮播）。
+	// ---------------------------------------------------------------------
+	if (stage) {
+		syncBanner();
+		updateHeroTitleParallax();
+		updateClassicScrollState();
+		if (!window.__shironeBannerBound) {
+			window.__shironeBannerBound = true;
+			window.addEventListener(WALLPAPER_MODE_CHANGE_EVENT, () => syncBanner());
+			window.addEventListener(WALLPAPER_FULLSCREEN_LAYOUT_CHANGE_EVENT, () => syncBanner());
+			window.addEventListener(BANNER_CAROUSEL_CHANGE_EVENT, () => syncBanner());
+			window.addEventListener(BANNER_TITLE_CHANGE_EVENT, () => syncBanner());
+			window.addEventListener(BANNER_WAVES_CHANGE_EVENT, () => syncBanner());
+			window.addEventListener(BANNER_GRADIENT_CHANGE_EVENT, () => syncBanner());
+			window.addEventListener(
+				"scroll",
+				() => {
+					requestHeroTitleParallax();
+					requestClassicScrollState();
+				},
+				{ passive: true },
+			);
+			window.addEventListener("resize", () => {
+				requestHeroTitleParallax();
+				requestClassicScrollState();
+				if (currentViewport() === "desktop" && stage?.hidden === false) {
+					scheduleContextTitleFit();
+				}
+			});
+			window.addEventListener(WALLPAPER_MODE_CHANGE_EVENT, () => {
+				requestHeroTitleParallax();
+				requestClassicScrollState();
+			});
+			window.addEventListener(WALLPAPER_FULLSCREEN_LAYOUT_CHANGE_EVENT, () => {
+				requestHeroTitleParallax();
+				requestClassicScrollState();
+			});
+			// 下滑箭头点击：平滑滚动到内容区（事件委托，箭头随页面 SSR 常驻）。
+			// 目标位置 = 内容区顶部 − 固定顶栏高度，避免内容首栏被顶栏遮住
+			stage.addEventListener("click", (event) => {
+				const target = event.target as Element | null;
+				if (!target?.closest("[data-banner-scroll-down]")) return;
+				const main = document.getElementById("main-layout");
+				if (!main) return;
+				const headerHeight =
+					document.querySelector(".top-app-bar")?.getBoundingClientRect().height ??
+					64;
+				const top = main.getBoundingClientRect().top + window.scrollY - headerHeight;
+				window.scrollTo({ top, behavior: "smooth" });
+			});
+			window.matchMedia("(min-width: 1024px)").addEventListener("change", () => syncBanner());
+				window.matchMedia("(prefers-reduced-motion: reduce)").addEventListener("change", () => {
+					if (prefersReducedMotion()) {
+						stopLayerMotions();
+						showSubtitleImmediately();
+					}
+					syncBanner();
+				});
+			document.addEventListener("visibilitychange", () => {
+					if (document.hidden) {
+						pauseLayerMotions();
+					} else {
+						resumeLayerMotions();
+					}
+					syncBanner();
+				});
+			document.addEventListener("swup:visit:start", () => {
+				animateContextOut();
+			});
+			document.addEventListener("swup:content:replace", () => {
+				scheduleNavigationSync(true);
+			});
+			document.addEventListener("swup:page:view", () => {
+				scheduleNavigationSync(true);
+				requestClassicScrollState();
+			});
+			document.fonts?.ready.then(scheduleContextTitleFit);
+		}
+	}
+</script>
+
+<style lang="stylus">
+		.banner-stage
+			position: absolute
+			inset: 0 0 auto
+			height: var(--banner-stage-height)
+			overflow: hidden
+			/* 底色对齐页面背景：模式切换期间舞台全程可见（不再整体淡出露底），
+			   图片未就绪时露出的也是正文底色而非更浅的“白” */
+			background: var(--page-bg)
+			/* 常规态仅保留 opacity 短过渡（纯色模式显隐等）；
+			   模式切换的几何过渡由下方 data-wallpaper-switching 窗口规则接管 */
+			transition: opacity var(--m3e-duration-short) var(--m3e-easing-standard)
+
+			&[hidden]
+				display: none
+
+		/* 壁纸模式 / 布局切换：setting-utils 打上 data-wallpaper-switching 后立即
+		   落位新几何（html[data-wallpaper-mode] 驱动），舞台全程可见不闪白。
+		   仅在切换窗口内启用高度过渡：横幅条 ↔ 整屏 fixed 之间平滑伸缩，
+		   位置 absolute↔fixed 的突变因两侧均 top:0 全宽而不可感知；
+		   窗口外不挂 transition，避免窗口缩放时 100lvh 高度被动画拖慢 */
+		:global(html[data-wallpaper-switching]) .banner-stage
+			transition: height var(--m3e-duration-long) var(--m3e-easing-standard), opacity var(--m3e-duration-long) var(--m3e-easing-standard)
+
+		/* 切换窗口内图片的形态差异（全屏/覆盖透明的 scale(1.05) 与模糊）同步插值，
+		   消除几何变化时的缩放/模糊突跳；opacity 保留轮播交叉淡化能力 */
+		:global(html[data-wallpaper-switching]) .banner-stage__image,
+		:global(html[data-wallpaper-switching]) .banner-stage__slide-video
+			transition: transform var(--m3e-duration-long) var(--m3e-easing-standard), filter var(--m3e-duration-long) var(--m3e-easing-standard), opacity var(--banner-fade-duration, 1200ms) var(--m3e-easing-standard)
+
+		.banner-stage__media,
+		.banner-stage__scrim,
+		.banner-stage__copy
+			position: absolute
+			inset: 0
+
+		.banner-stage__image,
+		.banner-stage__slide-video
+			position: absolute
+			inset: 0
+			width: 100%
+			height: 100%
+			object-fit: cover
+			opacity: 0
+			will-change: opacity, transform
+			transform-origin: center center
+
+		.banner-stage__image--fading,
+		.banner-stage__slide-video--fading
+			transition: opacity var(--banner-fade-duration, 1200ms) var(--m3e-easing-standard)
+
+		.banner-stage__image--active,
+		.banner-stage__slide-video--active
+			opacity: 1
+
+		/* 横幅背景视频：默认透明（图片作海报层），播放时淡入覆盖 */
+		.banner-stage__video
+			position: absolute
+			inset: 0
+			width: 100%
+			height: 100%
+			object-fit: cover
+			opacity: 0
+			pointer-events: none
+			transition: opacity var(--banner-fade-duration, 1200ms) var(--m3e-easing-standard)
+
+		.banner-stage__video--active
+			opacity: 1
+
+		.banner-stage__scrim
+			z-index: 1
+			background: unquote("rgb(0 0 0 / calc(var(--banner-dim-opacity) * 0.55))")
+			pointer-events: none
+
+		:global(html.dark) .banner-stage__scrim
+			background: unquote("rgb(0 0 0 / var(--banner-dim-opacity))")
+
+		.banner-stage__copy
+			z-index: 2
+			display: none
+			flex-direction: column
+			align-items: center
+			justify-content: center
+			padding: 4rem 1.5rem 2rem
+			color: white
+			text-align: center
+			text-shadow: 0 2px 12px rgba(0, 0, 0, 0.48)
+			pointer-events: none
+
+		.banner-stage__copy h1,
+		.banner-stage__context-title
+			margin: 0
+			font: var(--m3e-type-headline-medium)
+			font-weight: 700
+			letter-spacing: 0
+			line-height: 1.1
+
+		.banner-stage__copy h1,
+		.banner-stage__context-title
+			font-size: clamp(2.5rem, 5rem, 5rem)
+
+		.banner-stage__copy--home p
+			margin-top: 0.75rem
+			font: var(--m3e-type-headline-small)
+
+			&[data-subtitle-state="typing"]::after
+				content: ""
+				display: inline-block
+				width: 0.08em
+				height: 1em
+				margin-inline-start: 0.12em
+				vertical-align: -0.12em
+				background: currentColor
+				animation: banner-subtitle-caret var(--m3e-duration-long) steps(1, end) infinite
+
+		/* 首页标题下快捷入口：文字胶囊 / 圆形图标按钮（图像上的可读性白玻璃样式） */
+		.banner-stage__links
+			display: flex
+			flex-wrap: wrap
+			align-items: center
+			justify-content: center
+			gap: 0.75rem
+			margin-top: 1.25rem
+			pointer-events: auto
+
+		.banner-stage__link
+			display: inline-flex
+			align-items: center
+			gap: 0.375rem
+			height: 2.5rem
+			padding: 0 1.125rem
+			border-radius: var(--shape-corner-full)
+			border: 1px solid rgba(255, 255, 255, 0.45)
+			background: rgba(255, 255, 255, 0.14)
+			backdrop-filter: blur(8px)
+			-webkit-backdrop-filter: blur(8px)
+			color: white
+			font: var(--m3e-type-label-large)
+			text-decoration: none
+			text-shadow: 0 1px 6px rgba(0, 0, 0, 0.35)
+			transition: background-color var(--m3e-duration-short) var(--m3e-easing-standard), transform var(--m3e-duration-short) var(--m3e-easing-standard)
+
+			&:hover
+				background: rgba(255, 255, 255, 0.28)
+
+			&:active
+				transform: scale(0.96)
+
+			> :global(svg)
+				width: 1.125rem
+				height: 1.125rem
+				flex-shrink: 0
+
+		.banner-stage__link--icon
+			width: 2.5rem
+			padding: 0
+			justify-content: center
+
+		.banner-stage__copy--context
+			inset: 50% auto auto 50%
+			width: min(calc(100% - var(--m3e-space-12)), 64rem)
+			min-height: calc(var(--m3e-space-12) * 2)
+			padding: var(--m3e-space-6) var(--m3e-space-8)
+			align-items: center
+			justify-content: center
+			text-align: center
+			transform: translate(-50%, -50%)
+
+		.banner-stage__context-title,
+		.banner-stage__context-details
+			max-width: 100%
+
+		.banner-stage__context-title
+			width: 100%
+			overflow-wrap: normal
+			white-space: nowrap
+
+			&[data-title-fit="wrapped"]
+				overflow-wrap: anywhere
+				white-space: normal
+				text-wrap: balance
+
+		.banner-stage__context-details
+			display: flex
+			flex-direction: column
+			align-items: center
+			width: min(100%, 48rem)
+			margin-top: var(--m3e-space-5)
+
+		.banner-stage__context-divider
+			width: var(--m3e-space-12)
+			height: 1px
+			background: rgba(255, 255, 255, 0.72)
+
+		/* 描述：参考站引言框样式（半透明暗底圆角框 + 首尾引号装饰） */
+		.banner-stage__context-description
+			position: relative
+			max-width: min(50rem, 78vw)
+			margin: var(--m3e-space-4) 0 0
+			padding: 0.85rem 2.25rem
+			border-radius: var(--shape-corner-l)
+			background: rgba(0, 0, 0, 0.16)
+			color: rgba(255, 255, 255, 0.85)
+			font-size: 0.95rem
+			font-weight: 400
+			line-height: 1.7
+			text-align: left
+			text-shadow: 0 2px 16px rgba(0, 0, 0, 0.6)
+			text-wrap: pretty
+			overflow-wrap: anywhere
+
+		.banner-stage__context-quote
+			position: absolute
+			display: inline-flex
+			color: rgba(255, 255, 255, 0.35)
+			pointer-events: none
+
+			> :global(svg)
+				display: block
+				width: 1.5rem
+				height: 1.5rem
+
+			&--start
+				top: 0.45rem
+				left: 0.5rem
+				transform: rotate(180deg)
+
+			&--end
+				right: 0.5rem
+				bottom: 0.45rem
+
+		.banner-stage__context-meta
+			display: flex
+			align-items: center
+			justify-content: center
+			gap: var(--m3e-space-2)
+			margin-top: var(--m3e-space-3)
+			font: var(--m3e-type-label-large)
+			font-variant-numeric: tabular-nums
+			opacity: 0.8
+
+			> :global(svg)
+				width: var(--m3e-space-5)
+				height: var(--m3e-space-5)
+
+		.banner-stage__copy--context [hidden]
+			display: none
+
+		.banner-stage[data-copy-mode="home"] .banner-stage__copy--home,
+		.banner-stage[data-copy-mode="context"] .banner-stage__copy--context
+			display: flex
+
+		/* 渐变过渡：壁纸底部到背景色的平滑过渡，由渐变开关独立控制 */
+		.banner-stage__gradient
+			position: absolute
+			z-index: 3
+			inset: auto 0 0
+			height: clamp(4rem, 12vh, 10rem)
+			background: linear-gradient(to bottom, transparent, var(--page-bg))
+			pointer-events: none
+
+		:global(html[data-banner-gradient-enabled="false"]) .banner-stage__gradient
+			display: none !important
+
+		/* 访客关闭首页壁纸标题 */
+		:global(html[data-banner-title-enabled="false"]) .banner-stage__copy--home
+			display: none !important
+
+		/* 覆盖透明模式：壁纸固定铺满视口作背景，透明度 / 模糊由显示设置驱动 */
+		:global(html[data-wallpaper-mode="overlay"]) .banner-stage
+			position: fixed
+			inset: 0
+			height: 100vh
+			height: 100lvh
+			z-index: -1
+			pointer-events: none
+			opacity: var(--overlay-opacity, 0.8)
+			/* 本规则比 data-wallpaper-switching 窗口规则更靠后（同特异性会胜出），
+			   height 必须并入此处过渡，否则切入覆盖透明时高度硬跳 */
+			transition: opacity var(--m3e-duration-long) var(--m3e-easing-standard), height var(--m3e-duration-long) var(--m3e-easing-standard)
+
+		:global(html[data-wallpaper-mode="overlay"]) .banner-stage__image
+			filter: blur(var(--overlay-blur, 0px))
+			transform: scale(1.05)
+
+		/* 全屏壁纸 hero 布局：壁纸固定整屏，内容滚动其上；非首页按覆盖透明参数虚化。
+		   z-index 必须为 0（不能为负）：负 z 会把舞台画到 body 文档流盒子之下，
+		   而 body 盒子覆盖整页且可命中，点击会先落在 body 上——壁纸里的
+		   pointer-events:auto 链接永远收不到点击；置 0 后舞台仍在所有正 z 内容
+		   （#top-row z-50 / #main-layout z-30 / FAB z-45）之下，层级不受影响 */
+		:global(html[data-wallpaper-mode="fullscreen"][data-fullscreen-layout="hero"]) .banner-stage
+			position: fixed
+			inset: 0
+			height: 100vh
+			height: 100lvh
+			z-index: 0
+			pointer-events: none
+
+		:global(html[data-wallpaper-mode="fullscreen"]) .banner-stage__image
+			transform: scale(1.05)
+
+		/* 全屏 hero：非首页保持整屏虚化；首页顶部清晰，
+		   滚动趋向内容区时由 scrollFunction 渐进写入模糊进度（0→1） */
+		:global(html[data-wallpaper-mode="fullscreen"][data-fullscreen-layout="hero"] body:not([data-current-page="home"])) .banner-stage__image
+			filter: blur(var(--overlay-blur, 0px))
+
+		:global(html[data-wallpaper-mode="fullscreen"][data-fullscreen-layout="hero"] body[data-current-page="home"]) .banner-stage__image
+			filter: blur(calc(var(--overlay-blur, 0px) * var(--wallpaper-blur-progress, 0)))
+
+		/* 全屏壁纸 classic 布局：复刻文档流全屏——壁纸随页滚动，
+		   首页整屏（内容首屏之下），非首页与横幅模式一致（桌面横幅高度，不虚化） */
+		:global(html[data-wallpaper-mode="fullscreen"][data-fullscreen-layout="classic"]) .banner-stage
+			position: absolute
+			pointer-events: none
+
+		:global(html[data-wallpaper-mode="fullscreen"][data-fullscreen-layout="classic"] body[data-current-page="home"]) .banner-stage
+			height: 100vh
+			height: 100lvh
+
+		@media (max-width: 1023.98px)
+			:global(html[data-wallpaper-mode="fullscreen"][data-fullscreen-layout="classic"] body:not([data-current-page="home"])) .banner-stage
+				display: none
+
+		/* classic 首页：首屏底部只留下滑箭头，水波纹/渐变滚动后才淡入（参考站行为） */
+		:global(html[data-wallpaper-mode="fullscreen"][data-fullscreen-layout="classic"] body[data-current-page="home"] .banner-waves),
+		:global(html[data-wallpaper-mode="fullscreen"][data-fullscreen-layout="classic"] body[data-current-page="home"]) .banner-stage__gradient
+			opacity: 0
+			transition: opacity var(--m3e-duration-long) var(--m3e-easing-standard)
+
+		:global(html[data-wallpaper-mode="fullscreen"][data-fullscreen-layout="classic"] body[data-current-page="home"][data-banner-reveal] .banner-waves),
+		:global(html[data-wallpaper-mode="fullscreen"][data-fullscreen-layout="classic"] body[data-current-page="home"][data-banner-reveal]) .banner-stage__gradient
+			opacity: 1
+
+		/* 非首页横幅变矮（45vh 档）：标题字号对齐参考站页面标题尺度
+		   （全屏 classic 与横幅模式的非首页一致） */
+		:global(html[data-wallpaper-mode="fullscreen"][data-fullscreen-layout="classic"] body:not([data-current-page="home"])) .banner-stage__context-title,
+		:global(html[data-wallpaper-mode="banner"] body:not([data-current-page="home"])) .banner-stage__context-title
+			font-size: clamp(2rem, 4vw, 3rem)
+
+		/* 下滑箭头：仅全屏 classic 首页显示；滚过阈值后由脚本加 --hide 淡出 */
+		.banner-stage__scroll-down
+			display: none
+			position: absolute
+			bottom: 3rem
+			left: 50%
+			z-index: 4
+			padding: 0.25rem
+			border: 0
+			background: transparent
+			color: rgba(255, 255, 255, 0.85)
+			cursor: pointer
+			pointer-events: auto
+			transform: translateX(-50%)
+			transition:
+				opacity var(--m3e-duration-medium) var(--m3e-easing-standard),
+				visibility var(--m3e-duration-medium) var(--m3e-easing-standard),
+				color var(--m3e-duration-short) var(--m3e-easing-standard)
+
+			> :global(svg)
+				display: block
+				width: 3.5rem
+				height: 3.5rem
+				filter: drop-shadow(0 2px 6px rgba(0, 0, 0, 0.35))
+				animation: banner-scroll-down-bounce 2s var(--m3e-easing-standard) infinite
+
+			&:hover
+				color: #fff
+
+			&:focus-visible
+				border-radius: var(--shape-corner-full)
+				outline: 2px solid rgba(255, 255, 255, 0.9)
+				outline-offset: 2px
+
+		.banner-stage__scroll-down--hide
+			opacity: 0
+			visibility: hidden
+			pointer-events: none
+
+		:global(html[data-wallpaper-mode="fullscreen"][data-fullscreen-layout="classic"]) body[data-current-page="home"] .banner-stage__scroll-down
+			display: inline-flex
+
+		/* 水波纹 / 渐变过渡是横幅底部的过渡装饰：覆盖透明与全屏 hero 下无意义，
+		   classic 壁纸随页滚动，与横幅模式一致保留 */
+		:global(html[data-wallpaper-mode="fullscreen"][data-fullscreen-layout="hero"] .banner-waves),
+		:global(html[data-wallpaper-mode="overlay"] .banner-waves),
+		:global(html[data-wallpaper-mode="fullscreen"][data-fullscreen-layout="hero"] .banner-stage__gradient),
+		:global(html[data-wallpaper-mode="overlay"] .banner-stage__gradient)
+			display: none !important
+
+	:global(html[data-wallpaper-mode="none"]) .banner-stage
+		display: none
+
+	@media (max-width: 1023.98px)
+		:global(html[data-wallpaper-mode="banner"] body:not([data-current-page="home"])) .banner-stage
+			display: none
+
+		.banner-stage
+			&__copy h1
+				font-size: 2.75rem
+
+			&__copy--home p
+				font-size: 1.125rem
+
+	@keyframes banner-subtitle-caret
+		0%,
+		49%
+			opacity: 1
+		50%,
+		100%
+			opacity: 0
+
+	@keyframes banner-scroll-down-bounce
+		0%,
+		100%
+			transform: translateY(0)
+		50%
+			transform: translateY(0.5rem)
+
+	:global(html.motion-reduced) .banner-stage,
+	:global(html.motion-reduced) .banner-stage__image,
+	:global(html.motion-reduced) .banner-stage__copy p[data-subtitle-state="typing"]::after,
+	:global(html.motion-reduced) .banner-stage__scroll-down > :global(svg)
+		transition: none
+		animation: none
+
+	@media (prefers-reduced-motion: reduce)
+		.banner-stage__image,
+		.banner-stage__copy p[data-subtitle-state="typing"]::after,
+		.banner-stage__scroll-down > :global(svg)
+			transition: none
+			animation: none
+</style>
