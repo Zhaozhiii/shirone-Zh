@@ -100,7 +100,7 @@ export function resolveSkillsData(
  * 区间含 Present/至今 时终点记为 Infinity（视为进行中）；
  * 无法识别时返回 -Infinity，使未标注日期的条目稳定排在末尾。
  */
-export function parseTimelineDateKey(dateStr: string): {
+export function parseTimelineDateKey(dateStr?: string | null): {
 	start: number;
 	end: number;
 } {
@@ -116,12 +116,13 @@ export function parseTimelineDateKey(dateStr: string): {
 		return year * 10000 + month * 100 + day;
 	};
 
+	const value = dateStr ?? "";
 	// 仅按「两侧带空格的横杠」切分区间，避免切开 "2024-11" 这类日期自身
-	const rangeParts = dateStr.split(/\s+[-–—]\s+/);
+	const rangeParts = value.split(/\s+[-–—]\s+/);
 	const PRESENT = /present|now|至今|当前/i;
 
 	if (rangeParts.length === 1) {
-		const key = toKey(dateStr);
+		const key = toKey(value);
 		return Number.isNaN(key)
 			? { start: Number.NEGATIVE_INFINITY, end: Number.NEGATIVE_INFINITY }
 			: { start: key, end: key };

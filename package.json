@@ -24,8 +24,8 @@
     "tailwindcss-4"
   ],
   "scripts": {
-    "dev": "node scripts/content/sync.mjs && node scripts/icons/generate-local-icons.mjs && node scripts/images/generate-moment-thumbnails.mjs && astro dev",
-    "start": "node scripts/content/sync.mjs && node scripts/icons/generate-local-icons.mjs && node scripts/images/generate-moment-thumbnails.mjs && astro dev",
+    "dev": "node scripts/content/sync.mjs && node scripts/icons/generate-local-icons.mjs && node scripts/images/generate-moment-thumbnails.mjs && astro dev --port 4381",
+    "start": "node scripts/content/sync.mjs && node scripts/icons/generate-local-icons.mjs && node scripts/images/generate-moment-thumbnails.mjs && astro dev --port 4381",
     "check": "astro check",
     "content": "node scripts/content/cli.mjs",
     "content:status": "node scripts/content/status.mjs",
@@ -58,7 +58,9 @@
     "lint": "biome check --write ./src",
     "preinstall": "npx only-allow pnpm",
     "test": "playwright test",
-    "perf:measure": "node scripts/perf/measure.mjs"
+    "perf:measure": "node scripts/perf/measure.mjs",
+    "build:release": "pnpm build && node scripts/deploy/package.mjs",
+    "test:server": "node --test tests/deploy/server.test.mjs"
   },
   "dependencies": {
     "@astrojs/check": "^0.9.10",
@@ -135,7 +137,8 @@
     "@types/qrcode": "^1.5.6",
     "@types/sanitize-html": "^2.16.1",
     "esbuild": "^0.28.2",
-    "vite": "^8.2.1"
+    "vite": "^8.2.1",
+    "serve-handler": "6.1.7"
   },
   "packageManager": "pnpm@9.14.4",
   "pnpm": {

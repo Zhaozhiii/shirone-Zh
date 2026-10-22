@@ -1,11 +1,5 @@
 name: Shirone CI
 
-# 仓库 Secrets 需求：
-#   CONTENT_REPO_TOKEN —— 可读私有内容仓 fqzlr/shirone-content-fq 的
-#   Fine-grained PAT（仅该仓库、Contents: Read-only），用于 CI 内
-#   content sync 拉取内容；日志中凭据由 GitHub 自动脱敏，sync 脚本亦会
-#   redactUrl 兜底。
-
 on:
   push:
     branches: [main]
@@ -15,7 +9,8 @@ on:
 
 concurrency:
   group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
-  cancel-in-progress: true
+  # Never interrupt a production deployment halfway through activation.
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
 
 permissions:
   contents: read
@@ -35,7 +30,7 @@ jobs:
       - name: Set up pnpm
         uses: pnpm/action-setup@a7487c7e89a18df4991f7f222e4898a00d66ddda # v4.1.0
         with:
-          version: 9.14.4
+          # Omit the version so the action reads `packageManager` from package.json.
           run_install: false
 
       - name: Set up Node.js
@@ -66,7 +61,7 @@ jobs:
       - name: Set up pnpm
         uses: pnpm/action-setup@a7487c7e89a18df4991f7f222e4898a00d66ddda # v4.1.0
         with:
-          version: 9.14.4
+          # Omit the version so the action reads `packageManager` from package.json.
           run_install: false
 
       - name: Set up Node.js
@@ -79,20 +74,17 @@ jobs:
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
 
-      # astro check 前先物化内容：类型生成基于真实内容结构。
-      - name: Sync content repository
-        env:
-          CONTENT_REPO_URL: https://x-access-token:${{ secrets.CONTENT_REPO_TOKEN }}@github.com/fqzlr/shirone-content-fq.git
-        run: node scripts/content/sync.mjs
-
       - name: Check Astro diagnostics
         run: pnpm exec astro check
 
       - name: Validate atom manifest
         run: pnpm check:manifest
 
+      - name: Check TypeScript declarations
+        run: pnpm type-check
+
       - name: Run unit tests
-        run: node --test "tests/**/*.test.mjs"
+        run: node --test --test-concurrency=1 "tests/**/*.test.mjs"
 
   build:
     name: Build (Node.js ${{ matrix.node }})
@@ -112,7 +104,7 @@ jobs:
       - name: Set up pnpm
         uses: pnpm/action-setup@a7487c7e89a18df4991f7f222e4898a00d66ddda # v4.1.0
         with:
-          version: 9.14.4
+          # Omit the version so the action reads `packageManager` from package.json.
           run_install: false
 
       - name: Set up Node.js
@@ -126,6 +118,118 @@ jobs:
         run: pnpm install --frozen-lockfile
 
       - name: Build production site
-        env:
-          CONTENT_REPO_URL: https://x-access-token:${{ secrets.CONTENT_REPO_TOKEN }}@github.com/fqzlr/shirone-content-fq.git
         run: pnpm build
+
+      - name: Package Node.js release
+        if: matrix.node == 24
+        run: |
+          node scripts/deploy/package.mjs
+          tar -czf artifacts/release.tar.gz -C artifacts/deploy .
+          cd artifacts
+          sha256sum release.tar.gz > release.tar.gz.sha256
+
+      - name: Upload production release
+        if: matrix.node == 24 && github.event_name != 'pull_request'
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        with:
+          name: release-${{ github.sha }}
+          path: |
+            artifacts/release.tar.gz
+            artifacts/release.tar.gz.sha256
+          retention-days: 7
+          if-no-files-found: error
+
+  site:
+    name: Empty blog and wallpaper regressions
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    env:
+      CI: true
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
+      - uses: pnpm/action-setup@a7487c7e89a18df4991f7f222e4898a00d66ddda
+        with:
+          run_install: false
+      - uses: actions/setup-node@cdca7365b2dadb8aad0a33bc7601856ffabcc48e
+        with:
+          node-version: 24
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm exec playwright install --with-deps chrome
+      - run: pnpm exec playwright test tests/site/empty-blog.spec.ts tests/site/a11y.spec.ts --grep 'empty blog|wallpaper|首页|归档|关于'
+
+  deploy:
+    name: Deploy blog.zhiii.top
+    needs: [quality, checks, build, site]
+    if: github.event_name != 'pull_request' && github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    concurrency:
+      group: shirone-production
+      cancel-in-progress: false
+    env:
+      SERVER_HOST: ${{ vars.SERVER_HOST }}
+      SERVER_USER: ${{ vars.SERVER_USER }}
+      SERVER_KNOWN_HOSTS: ${{ vars.SERVER_KNOWN_HOSTS }}
+      RELEASE_SHA: ${{ github.sha }}
+    steps:
+      - name: Checkout exact release
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+
+      - name: Download production release
+        uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4.3.0
+        with:
+          name: release-${{ github.sha }}
+          path: release
+
+      - name: Verify release archive
+        working-directory: release
+        run: sha256sum --check release.tar.gz.sha256
+
+      - name: Configure deployment SSH
+        env:
+          SERVER_SSH_KEY: ${{ secrets.SERVER_SSH_KEY }}
+        run: |
+          test -n "$SERVER_HOST" && test -n "$SERVER_USER"
+          test -n "$SERVER_SSH_KEY" && test -n "$SERVER_KNOWN_HOSTS"
+          install -d -m 700 ~/.ssh
+          printf '%s\n' "$SERVER_SSH_KEY" > ~/.ssh/id_ed25519
+          chmod 600 ~/.ssh/id_ed25519
+          printf '%s\n' "$SERVER_KNOWN_HOSTS" > ~/.ssh/known_hosts
+
+      - name: Skip superseded commits
+        id: current
+        run: |
+          latest="$(git ls-remote origin refs/heads/main | cut -f1)"
+          if [ "$latest" = "$RELEASE_SHA" ]; then
+            echo 'deploy=true' >> "$GITHUB_OUTPUT"
+          else
+            echo 'deploy=false' >> "$GITHUB_OUTPUT"
+            echo 'A newer commit is on main; this release will not be deployed.' >> "$GITHUB_STEP_SUMMARY"
+          fi
+
+      - name: Upload and activate release
+        id: activate
+        if: steps.current.outputs.deploy == 'true'
+        run: |
+          scp -o BatchMode=yes -o StrictHostKeyChecking=yes release/release.tar.gz "$SERVER_USER@$SERVER_HOST:/srv/shirone-blog/site/incoming/$RELEASE_SHA.tar.gz"
+          scp -o BatchMode=yes -o StrictHostKeyChecking=yes release/release.tar.gz.sha256 "$SERVER_USER@$SERVER_HOST:/srv/shirone-blog/site/incoming/$RELEASE_SHA.tar.gz.sha256"
+          latest="$(git ls-remote origin refs/heads/main | cut -f1)"
+          if [ "$latest" != "$RELEASE_SHA" ]; then
+            echo 'A newer commit arrived during upload; activation skipped.' >> "$GITHUB_STEP_SUMMARY"
+            exit 0
+          fi
+          ssh -o BatchMode=yes -o StrictHostKeyChecking=yes "$SERVER_USER@$SERVER_HOST" "/usr/local/bin/shirone-blog-release activate $RELEASE_SHA"
+          echo 'deployed=true' >> "$GITHUB_OUTPUT"
+
+      - name: Verify public release and existing sites
+        if: steps.activate.outputs.deployed == 'true'
+        run: |
+          curl --fail --silent --show-error https://blog.zhiii.top/healthz | python3 -c 'import json,os,sys; assert json.load(sys.stdin)["release"] == os.environ["RELEASE_SHA"]'
+          curl --fail --silent --show-error --output /dev/null https://blog.zhiii.top/
+          curl --fail --silent --show-error --output /dev/null https://zhiii.top/
+          echo "Published $RELEASE_SHA to https://blog.zhiii.top" >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Remove temporary SSH key
+        if: always()
+        run: rm -f ~/.ssh/id_ed25519

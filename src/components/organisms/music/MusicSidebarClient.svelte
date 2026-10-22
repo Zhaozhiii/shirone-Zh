@@ -890,6 +890,7 @@ function setVolume(event: Event): void {
 		class="music-floating-lyrics"
 		class:music-floating-lyrics--shown={floatingShown}
 		aria-hidden={!floatingShown}
+		inert={!floatingShown}
 		role="region"
 		aria-label={labels.floatingLyrics}
 	>
@@ -933,6 +934,8 @@ function setVolume(event: Event): void {
 		class:music-float-player--pill={dockShape === "pill"}
 		class:music-float-player--panel-open={floatPanelOpen}
 		class:music-float-player--dragging={discDragging}
+		role="region"
+		aria-label={labels.floatPlayer}
 		style={
 			discPos
 				? `transform: translate(${Math.round(discPos.x)}px, ${Math.round(discPos.y)}px);`
@@ -942,7 +945,11 @@ function setVolume(event: Event): void {
 		<!-- 舞台：面板 + 信息层 + 工具栏 + 唱片（文档流自底向上生长，复刻参考博客） -->
 		<div class="music-float-player__stage">
 			<!-- 上展面板：歌单 / 歌词双 tab，由工具栏歌单按钮开合 -->
-			<div class="music-float-player__panel">
+			<div
+				class="music-float-player__panel"
+				aria-hidden={!floatPanelOpen}
+				inert={!floatPanelOpen}
+			>
 				<div class="music-float-player__panel-clip">
 					<div class="music-float-player__panel-body">
 						<div class="music-float-player__tabs" role="tablist">

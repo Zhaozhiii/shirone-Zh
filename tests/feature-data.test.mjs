@@ -49,11 +49,7 @@ describe("Feature Data & Resolver Tests", () => {
 			categories: [],
 			disabledNames: ["PHP"],
 		};
-		const items = [
-			{ name: "TypeScript" },
-			{ name: "Rust" },
-			{ name: "PHP" },
-		];
+		const items = [{ name: "TypeScript" }, { name: "Rust" }, { name: "PHP" }];
 		const resolved = resolveSkillsData(config, items);
 		assert.ok(resolved.some((s) => s.name === "TypeScript"));
 		assert.ok(!resolved.some((s) => s.name === "PHP"));
@@ -67,9 +63,9 @@ describe("Feature Data & Resolver Tests", () => {
 			disabledTitles: ["Senior Frontend Engineer"],
 		};
 		const items = [
-			{ title: "Senior Frontend Engineer" },
-			{ title: "Joined an Open Source Project" },
-			{ title: "Started Personal Blog & Tech Notes" },
+			{ title: "Senior Frontend Engineer", date: "2025.03" },
+			{ title: "Joined an Open Source Project", date: "2023.01" },
+			{ title: "Started Personal Blog & Tech Notes", date: "2022.04" },
 		];
 		const resolved = resolveTimelineData(config, items);
 		assert.ok(!resolved.some((t) => t.title === "Senior Frontend Engineer"));
