@@ -155,6 +155,8 @@ jobs:
           node-version: 24
           cache: pnpm
       - run: pnpm install --frozen-lockfile
+      - name: Generate local icon collections
+        run: pnpm icons:generate
       - run: pnpm exec playwright install --with-deps chrome
       - run: pnpm exec playwright test tests/site/empty-blog.spec.ts tests/site/a11y.spec.ts --grep 'empty blog|wallpaper|首页|归档|关于'
 
