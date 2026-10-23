@@ -2,6 +2,11 @@ import Key from "../i18nKey-runtime.mjs";
 import type { Translation } from "../translation.ts";
 
 export const zh_CN: Translation = {
+	[Key.media]: "电影书籍",
+	[Key.mediaDescription]: "看过的电影与读过的书。",
+	[Key.mediaEmpty]: "暂无电影和书籍，待续。",
+	[Key.friendStep2EmailTitle]: "邮箱留言",
+	[Key.friendStep2EmailDesc]: "把申请模板复制修改后，发送到以下邮箱即可。",
 	[Key.home]: "主页",
 	[Key.about]: "关于",
 	[Key.aboutSocialAria]: "站长社交账号",
@@ -87,8 +92,8 @@ export const zh_CN: Translation = {
 	[Key.animeSyncEmpty]: "当前数据源中暂无番剧条目",
 
 	[Key.compass]: "网址导航",
-	[Key.compassBanner]: "常去的站点 —— 开发工具、文档与各种兔子洞。",
-	[Key.compassNoResults]: "没有符合条件的站点",
+	[Key.compassBanner]: "收藏的网址与常用工具。",
+	[Key.compassNoResults]: "暂无网址，稍后再来看看吧。",
 	[Key.compassCounts]: "个站点",
 
 	[Key.skills]: "技能",

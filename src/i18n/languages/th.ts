@@ -2,6 +2,11 @@ import Key from "../i18nKey-runtime.mjs";
 import type { Translation } from "../translation.ts";
 
 export const th: Translation = {
+	[Key.media]: "ภาพยนตร์และหนังสือ",
+	[Key.mediaDescription]: "ภาพยนตร์ที่ดูและหนังสือที่อ่าน",
+	[Key.mediaEmpty]: "ยังไม่มีภาพยนตร์หรือหนังสือ",
+	[Key.friendStep2EmailTitle]: "ส่งอีเมล",
+	[Key.friendStep2EmailDesc]: "คัดลอกและกรอกแบบฟอร์ม แล้วส่งไปยังอีเมลด้านล่าง",
 	[Key.home]: "หน้าแรก",
 	[Key.about]: "เกี่ยวกับ",
 	[Key.aboutSocialAria]: "ลิงก์โซเชียล",

@@ -49,8 +49,12 @@ const steps = $derived([
 		desc: i18n(I18nKey.friendStep1Desc),
 	},
 	{
-		title: i18n(I18nKey.friendStep2Title),
-		desc: i18n(I18nKey.friendStep2Desc),
+		title: i18n(
+			site.email ? I18nKey.friendStep2EmailTitle : I18nKey.friendStep2Title,
+		),
+		desc: i18n(
+			site.email ? I18nKey.friendStep2EmailDesc : I18nKey.friendStep2Desc,
+		),
 	},
 	{
 		title: i18n(I18nKey.friendStep3Title),

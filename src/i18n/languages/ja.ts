@@ -2,6 +2,12 @@ import Key from "../i18nKey-runtime.mjs";
 import type { Translation } from "../translation.ts";
 
 export const ja: Translation = {
+	[Key.media]: "映画と本",
+	[Key.mediaDescription]: "観た映画と読んだ本。",
+	[Key.mediaEmpty]: "映画や本はまだありません。",
+	[Key.friendStep2EmailTitle]: "メールで申し込む",
+	[Key.friendStep2EmailDesc]:
+		"申請テンプレートをコピーして記入し、以下のメールアドレスに送信してください。",
 	[Key.home]: "Home",
 	[Key.about]: "About",
 	[Key.aboutSocialAria]: "交流リンク",

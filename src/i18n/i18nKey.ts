@@ -1,5 +1,10 @@
 enum I18nKey {
 	home = "home",
+	media = "media",
+	mediaDescription = "mediaDescription",
+	mediaEmpty = "mediaEmpty",
+	friendStep2EmailTitle = "friendStep2EmailTitle",
+	friendStep2EmailDesc = "friendStep2EmailDesc",
 	about = "about",
 	/** 关于页 · 社交链接分组无障碍名 */
 	aboutSocialAria = "aboutSocialAria",

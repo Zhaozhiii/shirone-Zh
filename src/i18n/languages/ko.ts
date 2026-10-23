@@ -2,6 +2,12 @@ import Key from "../i18nKey-runtime.mjs";
 import type { Translation } from "../translation.ts";
 
 export const ko: Translation = {
+	[Key.media]: "영화와 책",
+	[Key.mediaDescription]: "감상한 영화와 읽은 책.",
+	[Key.mediaEmpty]: "등록된 영화나 책이 없습니다.",
+	[Key.friendStep2EmailTitle]: "이메일 보내기",
+	[Key.friendStep2EmailDesc]:
+		"신청 양식을 복사해 작성한 후 아래 이메일 주소로 보내 주세요.",
 	[Key.home]: "홈",
 	[Key.about]: "소개",
 	[Key.aboutSocialAria]: "소셜 링크",

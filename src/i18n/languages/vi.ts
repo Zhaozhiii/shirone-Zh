@@ -2,6 +2,13 @@ import Key from "../i18nKey-runtime.mjs";
 import type { Translation } from "../translation.ts";
 
 export const vi: Translation = {
+	[Key.media]: "Phim và sách",
+	[Key.mediaDescription]:
+		"Những bộ phim tôi đã xem và những cuốn sách tôi đã đọc.",
+	[Key.mediaEmpty]: "Chưa có phim hoặc sách.",
+	[Key.friendStep2EmailTitle]: "Gửi email",
+	[Key.friendStep2EmailDesc]:
+		"Sao chép và điền mẫu đăng ký, sau đó gửi đến địa chỉ email bên dưới.",
 	[Key.home]: "Trang chủ",
 	[Key.about]: "Giới thiệu",
 	[Key.aboutSocialAria]: "Liên kết mạng xã hội",

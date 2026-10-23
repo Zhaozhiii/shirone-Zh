@@ -2,6 +2,11 @@ import Key from "../i18nKey-runtime.mjs";
 import type { Translation } from "../translation.ts";
 
 export const zh_TW: Translation = {
+	[Key.media]: "電影書籍",
+	[Key.mediaDescription]: "看過的電影與讀過的書。",
+	[Key.mediaEmpty]: "暫無電影與書籍，待續。",
+	[Key.friendStep2EmailTitle]: "寄送電子郵件",
+	[Key.friendStep2EmailDesc]: "複製並修改申請範本後，寄送至以下信箱。",
 	[Key.home]: "首頁",
 	[Key.about]: "關於",
 	[Key.aboutSocialAria]: "站長社群連結",
@@ -86,9 +91,9 @@ export const zh_TW: Translation = {
 	[Key.animeConfigMissingBilibili]: "未設定嗶哩嗶哩 UID",
 	[Key.animeSyncEmpty]: "目前資料來源中暫無動畫條目",
 
-	[Key.compass]: "網站導航",
-	[Key.compassBanner]: "常去的站點 —— 開發工具、文件與各種兔子洞。",
-	[Key.compassNoResults]: "沒有符合條件的站點",
+	[Key.compass]: "網址導航",
+	[Key.compassBanner]: "收藏的網址與常用工具。",
+	[Key.compassNoResults]: "暫無網址，稍後再來看看吧。",
 	[Key.compassCounts]: "個站點",
 
 	[Key.skills]: "技能",

@@ -2,6 +2,12 @@ import Key from "../i18nKey-runtime.mjs";
 import type { Translation } from "../translation.ts";
 
 export const tr: Translation = {
+	[Key.media]: "Filmler ve Kitaplar",
+	[Key.mediaDescription]: "İzlediğim filmler ve okuduğum kitaplar.",
+	[Key.mediaEmpty]: "Henüz film veya kitap yok.",
+	[Key.friendStep2EmailTitle]: "E-posta gönderin",
+	[Key.friendStep2EmailDesc]:
+		"Başvuru şablonunu kopyalayıp doldurun ve aşağıdaki e-posta adresine gönderin.",
 	[Key.home]: "Anasayfa",
 	[Key.about]: "Hakkında",
 	[Key.aboutSocialAria]: "Sosyal hesaplar",

@@ -1,0 +1,34 @@
+---
+import I18nKey from "@i18n/i18nKey";
+import { i18n } from "@i18n/translation";
+import { Icon } from "astro-icon/components";
+---
+
+<section class="media-section onload-animation" aria-labelledby="media-title">
+    <h1 id="media-title"><Icon name="material-symbols:menu-book-rounded" aria-hidden="true" />{i18n(I18nKey.media)}</h1>
+    <p>{i18n(I18nKey.mediaDescription)}</p>
+    <div class="media-section__empty">{i18n(I18nKey.mediaEmpty)}</div>
+</section>
+
+<style>
+    .media-section {
+        padding: 2rem;
+        border-radius: var(--shape-corner-l);
+        background: var(--card-bg);
+        color: var(--on-surface);
+    }
+    h1 {
+        display: flex;
+        align-items: center;
+        gap: 0.75rem;
+        font: var(--m3e-type-headline-medium);
+    }
+    h1 svg { color: var(--primary); }
+    p { margin-top: 0.5rem; font: var(--m3e-type-body-medium); color: var(--on-surface-variant); }
+    .media-section__empty {
+        padding: 4rem 1rem;
+        text-align: center;
+        font: var(--m3e-type-body-large);
+        color: var(--on-surface-variant);
+    }
+</style>
