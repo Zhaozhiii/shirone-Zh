@@ -49,4 +49,16 @@ test("repeating migration preserves edited notes, custom Bases, home and clock",
 		});
 	for (const [path, text] of Object.entries(authored))
 		assert.equal(readFileSync(join(root, path), "utf8"), text, path);
+	assert.match(
+		readFileSync(join(root, "管理面板/文章.base"), "utf8"),
+		/image: note.image/,
+	);
+	assert.match(
+		readFileSync(join(root, "管理面板/友链.base"), "utf8"),
+		/image: note.imgurl/,
+	);
+	assert.match(
+		readFileSync(join(root, "管理面板/文章.base"), "utf8"),
+		/note.title:\n\s+displayName: 标题/,
+	);
 });

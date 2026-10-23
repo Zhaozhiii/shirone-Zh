@@ -183,10 +183,12 @@ for (const [domain, def] of Object.entries(domains)) {
 	const fields = { ...def.fields, ...commonFields };
 	const props = {};
 	for (const [key, [label]] of Object.entries(fields))
-		if (key !== "password") props[key] = { displayName: label };
+		if (key !== "password") props[`note.${key}`] = { displayName: label };
 	const order = [
 		"file.name",
-		...Object.keys(fields).filter((k) => k !== "password"),
+		...Object.keys(fields)
+			.filter((k) => k !== "password")
+			.map((k) => `note.${k}`),
 	];
 	seed(
 		join(root, "管理面板", `${def.label}.base`),
@@ -200,20 +202,22 @@ for (const [domain, def] of Object.entries(domains)) {
 					type: "table",
 					name: "表格",
 					order,
-					sort: [{ property: "order", direction: "ASC" }],
+					sort: [{ property: "note.order", direction: "ASC" }],
 				},
 				{
 					type: "cards",
 					name: "卡片",
 					order: [
-						"file.name",
-						"title",
-						"name",
-						"draft",
-						"visible",
-						"publishAt",
+						["title", "name", "label", "platform", "content", "text"].some(
+							(k) => def.fields[k],
+						)
+							? `note.${["title", "name", "label", "platform", "content", "text"].find((k) => def.fields[k])}`
+							: "file.name",
+						"note.draft",
+						"note.visible",
+						"note.publishAt",
 					],
-					image: "note.cover",
+					image: `note.${["cover", "image", "imgurl", "avatar"].find((key) => def.fields[key]) || "cover"}`,
 					cardSize: 220,
 				},
 			],

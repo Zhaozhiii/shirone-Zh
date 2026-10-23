@@ -187,6 +187,8 @@ function title(r) {
 		r.data.name ||
 		r.data.label ||
 		r.data.platform ||
+		r.data.content ||
+		r.data.text ||
 		basename(r.path, ".md")
 	);
 }

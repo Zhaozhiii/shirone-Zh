@@ -124,6 +124,35 @@ test("production never exposes drafts, private originals or album source manifes
 	}
 });
 
+test("production search finds published content without indexing drafts or protected text", async ({
+	page,
+	request,
+}) => {
+	test.skip(!live, "Production search index check");
+	test.skip(
+		!(await request.get("/cms-acceptance/")).ok(),
+		"Acceptance window has ended",
+	);
+	await page.goto("/");
+	const entries = await page.evaluate(async () => {
+		const url = "/pagefind/pagefind.js";
+		const pagefind = await import(/* @vite-ignore */ url);
+		const result = await pagefind.search("CMS");
+		return await Promise.all(
+			result.results.map((r: { data: () => Promise<unknown> }) => r.data()),
+		);
+	});
+	expect(entries.length).toBeGreaterThan(0);
+	const text = JSON.stringify(entries);
+	for (const value of [
+		"cms-acceptance-draft",
+		fixture.password,
+		fixture.draftSecret,
+		fixture.lockedSecret,
+	])
+		expect(text).not.toContain(value);
+});
+
 for (const path of ["/media/", "/series/", "/series/cms-acceptance/"]) {
 	test(`CMS page has no WCAG AA violations: ${path}`, async ({ page }) => {
 		await page.emulateMedia({ reducedMotion: "reduce" });
