@@ -165,3 +165,13 @@ test("ordinary Chinese titles with spaces get usable default article and album U
   assert.ok(existsSync(join(root,"src/content/posts/YOLO-学习.md")));
   assert.ok(existsSync(join(root,"public/images/albums/我的-相册/info.json")));
 });
+
+test("a public album defaults to its first photo when no cover property is supplied",t=>{
+  const {root,write,note,build}=fixture(t);
+  write("附件/photo.png","PHOTO_BYTES");
+  note("album.md",{type:"album",publish:true,key:"album",photos:[{src:"附件/photo.png"}]});
+  build();
+  const info=JSON.parse(readFileSync(join(root,"public/images/albums/album/info.json"),"utf8"));
+  assert.match(info.cover,/^\/images\/vault\/[a-f0-9]+\.png$/);
+  assert.equal(info.cover,info.photos[0].src);
+});

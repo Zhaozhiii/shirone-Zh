@@ -1,7 +1,7 @@
 import { expect, test } from "@playwright/test";
 
 test("native Vault keeps existing public pages and excludes private content", async ({ request }) => {
-  for (const path of ["/", "/about/", "/devices/", "/projects/", "/friends/", "/moments/", "/media/"]) {
+  for (const path of ["/", "/about/", "/devices/", "/projects/", "/friends/", "/moments/", "/media/", "/albums/AcgExample/", "/albums/EncryptedExample/"]) {
     const response=await request.get(path);
     expect(response.ok(),path).toBe(true);
     expect(await response.text()).not.toContain("PRIVATE_VAULT_FIXTURE_MUST_NOT_LEAK");

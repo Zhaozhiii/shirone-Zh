@@ -51,6 +51,10 @@ export function migrate(source, vault, theme) {
       const originalId = oldPath.slice((schema.folder || `cms/${domain}`).length+1).replace(/\.md$/,"");
       const data = transform(note.data);
       data.type = type;
+      if(domain === "albums" && !data.cover) {
+        const cover=["webp","jpg","png"].map(ext=>`public/images/albums/${data.key}/cover.${ext}`).find(path=>assets.has(path));
+        if(cover)data.cover=assets.get(cover);
+      }
       // Preserve the author's explicit draft/visibility choices, including future windows.
       data.publish = data.draft !== true && data.visible !== false;
       data.slug ??= data.alias || (domain === "posts" ? originalId.replace(/\/index$/,"") : data.key || data.cmsId || originalId);

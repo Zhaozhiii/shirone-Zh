@@ -531,6 +531,7 @@ export function compileVault({
 								...mapAssets(cleanData(r), r.path),
 								order: r.data.order ?? 0,
 								mode: "external",
+								cover: asset(r.data.cover || r.data.photos?.[0]?.src || "",r.path),
 								columns: r.data.columns || 3,
 								layout: r.data.layout || "masonry",
 								photos: mapAssets(r.data.photos || [], r.path),
