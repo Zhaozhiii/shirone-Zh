@@ -33,9 +33,12 @@ const latest = async (remote) => {
 };
 async function validatedCode(code) {
 	if (process.env.REQUIRE_VALIDATED_CODE !== "true") return true;
-	const response = await fetch(`https://api.github.com/repos/Zhaozhiii/shirone-Zh/actions/workflows/ci.yml/runs?head_sha=${code}&per_page=10`, {
+	const url = `https://api.github.com/repos/Zhaozhiii/shirone-Zh/actions/workflows/ci.yml/runs?head_sha=${code}&per_page=10`;
+	let response = await fetch(url, {
 		headers: { Authorization: `Bearer ${process.env.CONTENT_READ_TOKEN}`, Accept: "application/vnd.github+json" },
 	});
+	// The Vault token is scoped to its own repository. Source checks are public.
+	if ([403,404].includes(response.status)) response = await fetch(url,{headers:{Accept:"application/vnd.github+json"}});
 	if (!response.ok) throw new Error("Unable to verify source checks");
 	return (await response.json()).workflow_runs.some(run => run.head_sha === code && run.conclusion === "success" && run.event !== "pull_request");
 }
