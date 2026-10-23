@@ -11,7 +11,6 @@ import MetaIcon from "@components/atoms/display/MetaIcon.astro";
 import I18nKey from "@i18n/i18nKey";
 import { i18n } from "@i18n/translation";
 import { detectBuildPlatform } from "@utils/build-platform";
-import { url } from "@utils/url-utils";
 import { Icon } from "astro-icon/components";
 import { licenseConfig, siteConfig } from "@/config";
 import type { SiteInfoWidget } from "@/types/sidebarConfig";
@@ -178,7 +177,7 @@ const detailRows: DetailRow[] = [
 				<span class="site-info__rule" aria-hidden="true"></span>
 				{"href" in row && row.href
 					? (
-						<a class="site-info__value site-info__value--link" href={url(row.href)} rel="noreferrer noopener" target="_blank">
+						<a class="site-info__value site-info__value--link" href={row.href} rel="noreferrer noopener" target="_blank">
 							{row.value}
 						</a>
 					)

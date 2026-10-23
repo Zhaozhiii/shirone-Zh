@@ -8,6 +8,14 @@ test("empty blog keeps homepage, archive and feeds usable", async ({
 	expect(response?.status()).toBe(200);
 	await expect(page.locator("[data-empty-posts]")).toHaveText("暂无数据");
 	await expect(page.locator('a[href^="/posts/"]')).toHaveCount(0);
+	const licenseLink = page.locator("#site-info").getByRole("link", {
+		name: "CC BY-NC-SA 4.0",
+		exact: true,
+	});
+	await expect(licenseLink).toHaveAttribute(
+		"href",
+		"https://creativecommons.org/licenses/by-nc-sa/4.0/",
+	);
 	await page.locator('#navbar a[href="/archive/"]').first().click();
 	await expect(page).toHaveURL(/\/archive\/?$/);
 	await expect(page.locator("#swup-container")).toHaveAttribute(
@@ -15,6 +23,10 @@ test("empty blog keeps homepage, archive and feeds usable", async ({
 		"archive",
 	);
 	await page.reload();
+	await expect(licenseLink).toHaveAttribute(
+		"href",
+		"https://creativecommons.org/licenses/by-nc-sa/4.0/",
+	);
 	await expect(page.locator("#swup-container")).toHaveAttribute(
 		"data-current-page",
 		"archive",
@@ -28,6 +40,9 @@ test("empty blog keeps homepage, archive and feeds usable", async ({
 		expect(await feed.text()).not.toMatch(new RegExp(`<${tag}[\\s>]`));
 	}
 	expect((await request.get("/posts/guide/")).status()).toBe(404);
+	for (const path of ["/AGENTS/", "/images/albums/AGENTS.md"]) {
+		expect((await request.get(path)).status(), path).toBe(404);
+	}
 });
 
 test("wallpaper controls preserve transparency across navigation and reload", async ({

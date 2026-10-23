@@ -44,7 +44,6 @@ jobs:
         run: pnpm install --frozen-lockfile
 
       - name: Run Biome
-        continue-on-error: true
         run: pnpm exec biome ci ./src --reporter=github
 
   checks:
@@ -122,11 +121,7 @@ jobs:
 
       - name: Package Node.js release
         if: matrix.node == 24
-        run: |
-          node scripts/deploy/package.mjs
-          tar -czf artifacts/release.tar.gz -C artifacts/deploy .
-          cd artifacts
-          sha256sum release.tar.gz > release.tar.gz.sha256
+        run: node scripts/deploy/package.mjs
 
       - name: Upload production release
         if: matrix.node == 24 && github.event_name != 'pull_request'

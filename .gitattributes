@@ -1,0 +1,4 @@
+# Keep source files identical on Windows and in Linux CI.
+* text=auto eol=lf
+*.bat text eol=crlf
+*.cmd text eol=crlf

@@ -44,7 +44,7 @@
     "anime:sync": "node scripts/anime/sync.mjs",
     "fonts:check": "node scripts/fonts/check-fonts.mjs",
     "fonts:subset": "node scripts/fonts/subset-fonts.mjs",
-    "build": "node scripts/content/sync.mjs && node scripts/icons/generate-local-icons.mjs && node scripts/images/generate-moment-thumbnails.mjs && node scripts/fonts/subset-fonts.mjs && astro build && npx pagefind --site dist && node scripts/fonts/check-fonts.mjs",
+    "build": "node scripts/content/sync.mjs && node scripts/icons/generate-local-icons.mjs && node scripts/images/generate-moment-thumbnails.mjs && node scripts/fonts/subset-fonts.mjs && astro build && npx pagefind --site dist && node scripts/fonts/check-fonts.mjs && node scripts/deploy/check-dist.mjs",
     "preview": "astro preview",
     "lighthouse:collect": "lhci collect --config=lighthouserc.cjs",
     "lighthouse:assert": "lhci assert --config=lighthouserc.cjs",
@@ -59,7 +59,7 @@
     "preinstall": "npx only-allow pnpm",
     "test": "playwright test",
     "perf:measure": "node scripts/perf/measure.mjs",
-    "build:release": "pnpm build && node scripts/deploy/package.mjs",
+    "build:release": "node scripts/deploy/build-release.mjs",
     "test:server": "node --test tests/deploy/server.test.mjs"
   },
   "dependencies": {
