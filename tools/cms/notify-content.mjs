@@ -4,11 +4,21 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 const dir = mkdtempSync(join(tmpdir(), "shirone-notify-"));
 const git = (args) =>
-	execFileSync("git", args, {
-		cwd: dir,
-		encoding: "utf8",
-		stdio: ["ignore", "pipe", "pipe"],
-	}).trim();
+	execFileSync(
+		"git",
+		[
+			"-c",
+			"user.name=Shirone theme publisher",
+			"-c",
+			"user.email=cms-theme@users.noreply.github.com",
+			...args,
+		],
+		{
+			cwd: dir,
+			encoding: "utf8",
+			stdio: ["ignore", "pipe", "pipe"],
+		},
+	).trim();
 try {
 	git([
 		"clone",

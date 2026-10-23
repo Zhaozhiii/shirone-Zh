@@ -20,6 +20,7 @@ import {
 	compileCms,
 	refreshState,
 } from "../../tools/cms/core.mjs";
+import { verifyPrivateOutput } from "../../tools/cms/verify-dist.mjs";
 const note = (domain, data, path = `cms/${domain}/test.md`, body = "") => ({
 	domain,
 	data,
@@ -273,4 +274,86 @@ test("wiki links resolve to stable post URLs and missing or ambiguous links are 
 		() => compileCms({ sourceRoot: f.source, root: f.root }),
 		/内部链接/,
 	);
+});
+
+test("real calendar dates and timed previews are validated", (t) => {
+	assert.throws(() => instant("2026-02-30"), /日期/);
+	const f = fixture(t);
+	f.write(
+		"content/posts/timed.md",
+		noteText({
+			title: "Timed",
+			published: "2026-10-24",
+			draft: true,
+			publishAt: "2026-10-25T08:00",
+		}),
+	);
+	refreshState(f.source, "2026-10-24T00:00:00Z");
+	compileCms({
+		sourceRoot: f.source,
+		root: f.root,
+		previewAt: "2026-10-24T08:00",
+	});
+	assert.equal(existsSync(join(f.root, "src/content/posts/timed.md")), false);
+	compileCms({
+		sourceRoot: f.source,
+		root: f.root,
+		previewAt: "2026-10-25T08:00",
+	});
+	assert.equal(existsSync(join(f.root, "src/content/posts/timed.md")), true);
+});
+
+test("Obsidian conversion preserves code examples and encodes attachment filenames", (t) => {
+	const f = fixture(t);
+	f.write("cms/media/中文 图片.svg", "<svg/>");
+	f.write(
+		"content/posts/code.md",
+		noteText(
+			{ title: "Code", published: "2026-10-24" },
+			"```\n[[missing]]\n```\n\n`![[missing.png]]`\n\n![[中文 图片.svg]]",
+		),
+	);
+	refreshState(f.source);
+	compileCms({ sourceRoot: f.source, root: f.root });
+	const output = readFileSync(
+		join(f.root, "src/content/posts/code.md"),
+		"utf8",
+	);
+	assert.match(output, /\[\[missing\]\]/);
+	assert.match(output, /`!\[\[missing.png\]\]`/);
+	assert.ok(
+		output.includes("/images/cms/" + encodeURIComponent("中文 图片.svg")),
+	);
+});
+
+test("privacy scan detects real fields without mistaking regex APIs for short demo passwords", (t) => {
+	const f = fixture(t);
+	f.write(
+		"content/posts/locked.md",
+		noteText(
+			{
+				title: "Locked",
+				published: "2026-10-24",
+				password: "test",
+				encrypted: true,
+			},
+			"Protected body sentinel with sufficient length",
+		),
+	);
+	refreshState(f.source, "2026-10-24T00:00:00Z");
+	const dist = join(f.root, "dist");
+	mkdirSync(dist);
+	writeFileSync(join(dist, "library.js"), "const check = /abc/.test(value);");
+	assert.doesNotThrow(() => verifyPrivateOutput(f.source, dist));
+	writeFileSync(join(dist, "leak.json"), JSON.stringify({ password: "test" }));
+	assert.throws(
+		() => verifyPrivateOutput(f.source, dist),
+		/Serialized password/,
+	);
+	rmSync(join(dist, "leak.json"));
+	writeFileSync(
+		join(dist, "leak.html"),
+		"Protected body sentinel with sufficient length",
+	);
+	assert.throws(() => verifyPrivateOutput(f.source, dist), /Private body/);
 });

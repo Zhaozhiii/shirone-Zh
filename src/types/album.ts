@@ -18,6 +18,7 @@ export type AlbumPhoto = {
 };
 
 export type AlbumGroup = {
+	order?: number;
 	id: string;
 	title: string;
 	description: string;

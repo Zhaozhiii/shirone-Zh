@@ -185,6 +185,7 @@ function scanAlbumDirectory(entry: fs.Dirent): AlbumGroup | null {
 		: localPhotos(id, albumDir);
 	return {
 		id,
+		order: typeof raw.order === "number" ? raw.order : 0,
 		title: stringValue(raw.title, id),
 		description: stringValue(raw.description),
 		cover,
@@ -207,7 +208,10 @@ export function scanAllAlbums(): AlbumGroup[] {
 		.map(scanAlbumDirectory)
 		.filter((album): album is AlbumGroup => album !== null)
 		.sort(
-			(a, b) => b.date.localeCompare(a.date) || a.title.localeCompare(b.title),
+			(a, b) =>
+				(a.order ?? 0) - (b.order ?? 0) ||
+				b.date.localeCompare(a.date) ||
+				a.title.localeCompare(b.title),
 		);
 }
 

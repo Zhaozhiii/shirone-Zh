@@ -495,7 +495,20 @@ class RecordForm extends Modal {
 								? { type: "object" }
 								: { type: type === "datetime" ? "datetime-local" : type };
 			s.label = name;
-			valueEditor(this.contentEl, key, data[key], s, (v) => (data[key] = v));
+			valueEditor(this.contentEl, key, data[key], s, (v) => {
+				data[key] = v;
+				if (this.domain === "posts" && key === "password" && v)
+					data.encrypted = true;
+				if (this.domain === "posts" && key === "encrypted" && v === false) {
+					delete data.password;
+					const input = this.contentEl.querySelector("input[type=password]");
+					if (input) input.value = "";
+				}
+			});
+			if (this.record?.path && ["key", "id"].includes(key)) {
+				const input = this.contentEl.lastElementChild?.querySelector("input");
+				if (input) input.readOnly = true;
+			}
 			if (required)
 				this.contentEl.lastElementChild?.classList.add("cms-required");
 		}
@@ -862,9 +875,29 @@ class CmsView extends ItemView {
 			text: "自定义页脚 HTML",
 		});
 		footer.onclick = async () => {
-			let f = this.app.vault.getAbstractFileByPath("config/footer.html");
-			if (!f) f = await this.app.vault.create("config/footer.html", "");
-			await this.app.workspace.getLeaf(true).openFile(f);
+			const path = "config/footer.html";
+			const file = this.app.vault.getAbstractFileByPath(path);
+			let value = file ? await this.app.vault.read(file) : "";
+			const modal = new Modal(this.app);
+			modal.contentEl.createEl("h2", { text: "自定义页脚 HTML" });
+			new Setting(modal.contentEl)
+				.setName("页脚内容")
+				.setDesc("需在“页脚”设置中启用自定义页脚。")
+				.addTextArea((t) => {
+					t.setValue(value).onChange((v) => (value = v));
+					t.inputEl.rows = 12;
+				});
+			new Setting(modal.contentEl).addButton((b) =>
+				b
+					.setButtonText("保存")
+					.setCta()
+					.onClick(async () => {
+						if (file) await this.app.vault.modify(file, value);
+						else await this.app.vault.create(path, value);
+						modal.close();
+					}),
+			);
+			modal.open();
 		};
 		const about = settingsButtons.createEl("button", { text: "关于页正文" });
 		about.onclick = async () => {
@@ -1328,7 +1361,10 @@ export default class ShironeCms extends Plugin {
 			child.stdin.end("protocol=https\nhost=github.com\n\n");
 		});
 	}
-	async preview(at) {
+	preview(at) {
+		return this.enqueue(() => this.startPreview(at));
+	}
+	async startPreview(at) {
 		if (this.children.length) {
 			for (const child of this.children) child.kill();
 			this.children = [];

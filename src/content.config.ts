@@ -47,6 +47,7 @@ export interface PostsSchemaOutput {
 }
 
 export interface MomentsSchemaOutput {
+	order?: number;
 	published: Date;
 	pinned: boolean;
 	location: string;
@@ -101,6 +102,7 @@ const postsSchema: z.ZodType<PostsSchemaOutput> = z.object({
 const specSchema: z.ZodType<Record<string, never>> = z.object({});
 
 const momentsSchema: z.ZodType<MomentsSchemaOutput> = z.object({
+	order: z.number().optional(),
 	published: z.date(),
 	pinned: z.boolean().optional().default(false),
 	location: z.string().optional().default(""),

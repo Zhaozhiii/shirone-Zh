@@ -25,6 +25,8 @@ const metadata = new Set([
 	"order",
 	"publishAt",
 	"unpublishAt",
+	"hidden",
+	"enable",
 ]);
 export function files(root) {
 	if (!existsSync(root)) return [];
@@ -287,7 +289,7 @@ export function compileCms({
 		if (!/\.(png|jpe?g|webp|avif|gif|svg)$/i.test(p))
 			throw new Error("不支持的图片类型");
 		assetPaths.add(p);
-		return `/images/cms/${p.slice(marker.length)}`;
+		return `/images/cms/${p.slice(marker.length).split("/").map(encodeURIComponent).join("/")}`;
 	}
 	function mapAssets(v) {
 		if (typeof v === "string") return asset(v);
@@ -446,6 +448,7 @@ export function compileCms({
 					? JSON.stringify(
 							{
 								...mapAssets(cleanData(r)),
+								order: r.data.order ?? 0,
 								mode: "external",
 								columns: r.data.columns || 3,
 								layout: r.data.layout || "masonry",

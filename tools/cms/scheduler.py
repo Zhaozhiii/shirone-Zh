@@ -11,7 +11,7 @@ STATE = "cms/publication-state.json"
 
 
 def git(repo, *args):
-    return subprocess.run(["git", "-C", str(repo), *args], check=True,
+    return subprocess.run(["git", "-c", "user.name=Shirone CMS scheduler", "-c", "user.email=cms-scheduler@users.noreply.github.com", "-C", str(repo), *args], check=True,
                           text=True, capture_output=True).stdout.strip()
 
 
