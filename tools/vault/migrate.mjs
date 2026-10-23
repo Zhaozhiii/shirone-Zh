@@ -1,6 +1,7 @@
 /** One-time migration from a legacy CMS working copy; never imports its Git history. */
-import { copyFileSync, existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
-import { dirname, join, relative, resolve } from "node:path";
+import { copyFileSync, existsSync, mkdirSync, readFileSync, writeFileSync, unlinkSync } from "node:fs";
+import { dirname, join, relative, resolve, posix, extname } from "node:path";
+import { createHash } from "node:crypto";
 import { parse, stringify } from "yaml";
 import { files, noteText, readNote } from "./core.mjs";
 import { domains } from "./model.mjs";
@@ -47,7 +48,18 @@ export function migrate(source, vault, theme) {
       data.slug ??= data.alias || (domain === "posts" ? originalId.replace(/\/index$/,"") : data.key || data.cmsId || originalId);
       delete data.cmsId; delete data.draft; delete data.visible;
       let body = note.body;
-      for (const [from,to] of [...assets].sort((a,b)=>b[0].length-a[0].length)) body = body.split(from).join(to);
+      // Resolve old relative image paths before moving a note to its natural folder.
+      body = body.replace(/(!\[[^\]]*\]\()([^\s)]+)(\))/g, (match,a,url,z) => {
+        const target=assets.get(posix.normalize(posix.join(posix.dirname(oldPath),url))) || assets.get(url);
+        return target ? a+target+z : match;
+      });
+      if (domain === "compass") {
+        for (const [index,entry] of (data.entries || []).entries()) {
+          write(join(vault,folder,`${originalId}-${index}.md`),noteText({type:"link",publish:data.publish,title:entry.label,url:entry.href,group:data.name,icon:entry.icon,cover:entry.image,description:entry.note,order:data.order || 0}));
+          counts.links=(counts.links||0)+1;
+        }
+        continue;
+      }
       // Existing album/structured data is kept verbatim in Properties; prose belongs in the body.
       if (!body.trim() && ["devices","projects","friends","media","announcements"].includes(domain)) {
         const field = {devices:"description",projects:"summary",friends:"desc",media:"description",announcements:"content"}[domain];
@@ -65,9 +77,20 @@ export function migrate(source, vault, theme) {
     write(join(vault,"个人笔记/关于",key+".md"), noteText({...transform(note.data),type:"page",key,publish:true},note.body));
     counts.pages=(counts.pages||0)+1;
   }
+  function configValue(value) {
+    if(Array.isArray(value))return value.map(configValue);
+    if(value && typeof value==="object")return Object.fromEntries(Object.entries(value).map(([k,v])=>[k,configValue(v)]));
+    if(typeof value!=="string")return value;
+    const mapped=assets.get(value) || assets.get(value.replace(/^\//,""));
+    if(!mapped)return value;
+    const file=join(vault,mapped),bytes=readFileSync(file);
+    const url="images/branding/"+createHash("sha256").update(bytes).digest("hex")+extname(file);
+    const dest=join(theme,"site/public",url);mkdirSync(dirname(dest),{recursive:true});copyFileSync(file,dest);
+    return "/"+url;
+  }
   for (const file of files(join(source,"config")).filter(p=>/\.(ya?ml|html)$/.test(p))) {
     const dest = join(theme,"site/config",relative(join(source,"config"),file));
-    write(dest,/\.ya?ml$/.test(file)?stringify(transform(parse(readFileSync(file,"utf8")))):readFileSync(file));
+    write(dest,/\.ya?ml$/.test(file)?stringify(configValue(parse(readFileSync(file,"utf8")))):readFileSync(file));
   }
   // The music generator and snapshots are engineering data, maintained only in the code repository.
   const music=join(source,"data/music.ts");
@@ -75,7 +98,15 @@ export function migrate(source, vault, theme) {
   for(const folder of [".github/scripts"])
     for(const file of files(join(source,folder))) write(join(theme,relative(source,file)),readFileSync(file));
   if(existsSync(join(source,".github/music-playlist-state.json"))) write(join(theme,".github/music-playlist-state.json"),readFileSync(join(source,".github/music-playlist-state.json")));
-  console.log(JSON.stringify({migrated:counts,attachments:new Set(assets.values()).size}));
+  // The source still holds the complete recovery copy. A new Vault only needs referenced attachments.
+  const text=files(vault).filter(p=>p.endsWith(".md")).map(p=>readFileSync(p,"utf8")).join("\n");
+  let retained=0;
+  for(const path of new Set(assets.values())) {
+    const name=posix.basename(path).replace(/[.*+?^${}()|[\]\\]/g,"\\$&");
+    if(text.includes(path) || new RegExp(`(?<![\\p{L}\\p{N}_])${name}(?![\\p{L}\\p{N}_])`,"u").test(text))retained++;
+    else unlinkSync(join(vault,path));
+  }
+  console.log(JSON.stringify({migrated:counts,attachments:retained}));
   return counts;
 }
 if (process.argv[2]) migrate(...process.argv.slice(2,5));

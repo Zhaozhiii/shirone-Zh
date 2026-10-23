@@ -31,7 +31,16 @@ const latest = async (remote) => {
 		"Remote version",
 	);
 };
+async function validatedCode(code) {
+	if (process.env.REQUIRE_VALIDATED_CODE !== "true") return true;
+	const response = await fetch(`https://api.github.com/repos/Zhaozhiii/shirone-Zh/actions/workflows/ci.yml/runs?head_sha=${code}&per_page=10`, {
+		headers: { Authorization: `Bearer ${process.env.CONTENT_READ_TOKEN}`, Accept: "application/vnd.github+json" },
+	});
+	if (!response.ok) throw new Error("Unable to verify source checks");
+	return (await response.json()).workflow_runs.some(run => run.head_sha === code && run.conclusion === "success" && run.event !== "pull_request");
+}
 console.log(
+	(await validatedCode(requireSha(process.env.CODE_SHA, "Code version"))) &&
 	isCurrentRelease({
 		code: requireSha(process.env.CODE_SHA, "Code version"),
 		content: requireSha(process.env.CONTENT_SHA, "Content version"),

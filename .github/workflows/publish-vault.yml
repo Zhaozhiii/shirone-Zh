@@ -36,6 +36,7 @@ jobs:
       SERVER_USER: ${{ vars.SERVER_USER }}
       SERVER_KNOWN_HOSTS: ${{ vars.SERVER_KNOWN_HOSTS }}
       ALLOW_CONTENT_ROLLBACK: ${{ inputs.allow_rollback }}
+      REQUIRE_VALIDATED_CODE: 'true'
     defaults:
       run:
         working-directory: theme
