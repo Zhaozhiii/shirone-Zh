@@ -1,5 +1,8 @@
 import assert from "node:assert/strict";
-import { test } from "node:test";
+import { after, test } from "node:test";
+import { mkdirSync, writeFileSync, unlinkSync } from "node:fs";
+import { join } from "node:path";
+import sharp from "sharp";
 
 import {
 	matchesNoReferrerDomain,
@@ -21,7 +24,19 @@ async function render(markdown) {
 	return code;
 }
 
-const IMAGE = "/images/albums/AcgExample/01.webp";
+// Image dimension tests must not depend on a blogger's private album files.
+const IMAGE = `/images/markdown-test-${process.pid}.png`;
+const imagePath = join(process.cwd(), "public", IMAGE);
+mkdirSync(join(process.cwd(), "public/images"), { recursive: true });
+writeFileSync(
+	imagePath,
+	await sharp({
+		create: { width: 144, height: 72, channels: 3, background: "#7958a4" },
+	})
+		.png()
+		.toBuffer(),
+);
+after(() => unlinkSync(imagePath));
 
 test("parses the w-N% width token out of alt text", () => {
 	assert.deepEqual(parseMarkdownImageAlt("A demo image w-50%"), {
