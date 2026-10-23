@@ -21,14 +21,20 @@ pnpm.cmd check
 pnpm.cmd type-check
 pnpm.cmd check:manifest
 pnpm.cmd test:server
-pnpm.cmd build:release
+pnpm.cmd build
 git add <明确要提交的文件>
 git commit -m "feat(content): add a new post"
+pnpm.cmd build:release
 git push origin main
 ```
 
 推送后查看 <https://github.com/Zhaozhiii/shirone-Zh/actions>。PR 只检查和构建；`main` 的全部必要 CI 任务成功后才发布，也可在 Actions 中对 `main` 手动运行 Shirone CI。
 GitHub 上的源码和 Actions 构建结果是日常发布入口，无需在服务器拉源码或安装主题依赖。
+
+`build:release` 同时更新 `artifacts/deploy/`、`artifacts/release.tar.gz` 和归档 SHA-256；本地与 CI 使用同一打包脚本。
+`release.json` 记录当前提交和 `dirty` 标记。本地未提交改动允许生成验证用快照（`dirty: true`），正式发布前先提交并重新构建；CI 拒绝脏工作区和与检出提交不符的版本号。
+构建和打包均检查开发说明是否进入产物；页面及相册开发规则分别在 `rules/page-routes.md`、`rules/album-media.md`，不得放入 `src/pages/` 或 `public/`。
+仓库使用 `.gitattributes` 固定文本换行为 LF，Biome 检查失败会阻止部署。
 
 Actions 使用仓库 Secret `SERVER_SSH_KEY`，以及 Variables `SERVER_HOST`、`SERVER_USER`、`SERVER_KNOWN_HOSTS`。
 密钥对应 `shirone-deploy` 用户；SSH 主机公钥已通过现有受信任连接核验，不在工作流中临时信任网络扫描结果。

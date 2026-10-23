@@ -1,5 +1,7 @@
 # Page Scope
 
+Applies to `src/pages/`. Keep these notes outside the route directory so Astro does not publish them as a page.
+
 - Keep route files thin: load/shape route data, choose the correct `page` identifier, pass page data into `MainGridLayout`, and delegate presentation to components. Read `src/config/README.md` before changing configuration-driven page behavior.
 - Use an existing `SidebarPage` value from `src/types/sidebarConfig.ts`; when a genuinely new page class is introduced, update the type, sidebar filtering, and focused tests together. Keep visible route copy in i18n rather than hard-coded strings.
 - Preserve SSR output for titles, descriptions, metadata, and accessible names. Add a Svelte hydration directive only for behavior that cannot run in SSR. On SSR-only routes, use `astro-icon` for icons.
