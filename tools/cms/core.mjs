@@ -415,7 +415,13 @@ export function compileCms({
 			"\\",
 			"/",
 		);
-		output(`.cms-cache/config/${rel}`, readFileSync(path, "utf8"));
+		const text = readFileSync(path, "utf8");
+		output(
+			`.cms-cache/config/${rel}`,
+			/\.ya?ml$/.test(rel) && text.includes("cms/media/")
+				? stringify(mapAssets(parse(text)))
+				: text,
+		);
 	}
 	if (manifest.managed.includes("announcements")) {
 		const path = join(sourceRoot, "config/announcement.yaml");

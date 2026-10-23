@@ -79,6 +79,34 @@ test("Shanghai times normalize and publication endpoints are exclusive", () => {
 	);
 	assert.throws(() => instant("tomorrow"));
 });
+test("site settings stage referenced CMS images without changing authored YAML", (t) => {
+	const { source, root, write } = fixture(t);
+	write("cms/media/avatar.svg", '<svg xmlns="http://www.w3.org/2000/svg"/>');
+	write("cms/media/unused.svg", '<svg xmlns="http://www.w3.org/2000/svg"/>');
+	const config =
+		"# Preserve the authored settings\navatar: cms/media/avatar.svg\n";
+	write("config/profile.yaml", config);
+	write(
+		"config/site.yaml",
+		"banner:\n  src:\n    desktop:\n      - cms/media/avatar.svg\n",
+	);
+	refreshState(source);
+	compileCms({ sourceRoot: source, root, production: true });
+	assert.match(
+		readFileSync(join(root, ".cms-cache/config/profile.yaml"), "utf8"),
+		/avatar: \/images\/cms\/avatar.svg/,
+	);
+	assert.match(
+		readFileSync(join(root, ".cms-cache/config/site.yaml"), "utf8"),
+		/\/images\/cms\/avatar.svg/,
+	);
+	assert.equal(
+		readFileSync(join(source, "config/profile.yaml"), "utf8"),
+		config,
+	);
+	assert.equal(existsSync(join(root, "public/images/cms/avatar.svg")), true);
+	assert.equal(existsSync(join(root, "public/images/cms/unused.svg")), false);
+});
 test("rejects category cycles, missing parents, invalid references and duplicate IDs", () => {
 	assert.throws(
 		() =>

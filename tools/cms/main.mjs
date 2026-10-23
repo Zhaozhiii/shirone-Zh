@@ -247,10 +247,20 @@ function valueEditor(parent, key, value, s, changed) {
 			list.empty();
 			current.forEach((v, i) => {
 				const box = list.createDiv({ cls: "cms-array-item" });
-				valueEditor(box, String(i + 1), v, s.items || inferred(v), (x) => {
-					current[i] = x;
-					changed(clone(current));
-				});
+				const itemSchema = s.items || inferred(v);
+				const imageList = /^(desktop|mobile|images|covers)$/i.test(key);
+				valueEditor(
+					box,
+					String(i + 1),
+					v,
+					imageList && itemSchema.type === "string"
+						? { ...itemSchema, type: "image" }
+						: itemSchema,
+					(x) => {
+						current[i] = x;
+						changed(clone(current));
+					},
+				);
 				const controls = box.createDiv({ cls: "cms-actions" });
 				for (const [text, act] of [
 					[
@@ -342,6 +352,22 @@ function valueEditor(parent, key, value, s, changed) {
 			)
 				? type
 				: "text";
+			if (
+				type === "image" ||
+				/^(avatar|image|cover|background|favicon|logo|src|qrcode|poster|ogImage|fallbackUrl)$/i.test(
+					key,
+				)
+			) {
+				setting.addButton((b) =>
+					b.setButtonText("选择图片").onClick(() => {
+						const plugin = window.app.plugins.plugins["shirone-cms"];
+						new ImagePicker(plugin, (path) => {
+							t.setValue(path);
+							changed(path);
+						}).open();
+					}),
+				);
+			}
 		});
 }
 class TextPrompt extends Modal {
@@ -642,9 +668,20 @@ class ImagePicker extends Modal {
 					r.body.includes(file.path) ||
 					r.body.includes(file.name),
 			);
-			box.createEl("small", { text: `被 ${refs.length} 个条目引用` });
+			const configRefs = this.app.vault
+				.getFiles()
+				.filter(
+					(f) =>
+						f.path.startsWith("config/") &&
+						/\.(ya?ml|html)$/.test(f.path) &&
+						readFileSync(join(this.plugin.root, f.path), "utf8").includes(
+							file.path,
+						),
+				);
+			const referenceCount = refs.length + configRefs.length;
+			box.createEl("small", { text: `被 ${referenceCount} 个条目或设置引用` });
 			const del = box.createEl("button", { text: "移入回收站" });
-			del.disabled = refs.length > 0;
+			del.disabled = referenceCount > 0;
 			del.onclick = async () => {
 				await this.app.fileManager.trashFile(file);
 				box.remove();
