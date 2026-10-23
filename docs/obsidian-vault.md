@@ -19,7 +19,7 @@ Properties 默认隐藏，需要时通过 Obsidian 原生命令显示文件属�
 | friend | 友链 | title、url、cover、tags |
 | project | 项目 | title、phase、technologies、cover、website、repository |
 | announcement | 公告 | title、publishAt、unpublishAt；正文即公告 |
-| album | 相册 | key（支持中文/数字/短横线）、photos、cover、passwordSecret |
+| album | 相册 | key（支持中文）、cover、passwordSecret；正文直接插入图片 |
 | category / tag / series | 可选分类、标签、系列描述 | key、name/title、parent |
 | skill / timeline / anime | 原有数据页 | 使用迁移笔记中的原有属性 |
 | page | 特殊正文页 | key: about 或 friends |
@@ -33,6 +33,7 @@ Properties 默认隐藏，需要时通过 Obsidian 原生命令显示文件属�
 `![[图片.png]]`、标准 Markdown 图片、相对附件路径和封面 `[[图片.png]]` 自动转换。
 只收集公开内容实际引用的附件，使用内容哈希去重，相邻私人附件不会被复制。
 同名有歧义时使用完整 Vault 内路径。指向私人笔记的普通双链仅保留显示文字，不展开正文。
+相册直接在正文粘贴或拖入图片即可，默认取第一张作封面；原有高级照片属性保留兼容。旧相册的隐式封面已迁成明确引用。
 禁止公开笔记使用文件包含、代码目录导出或私人笔记嵌入。公开笔记的属性和正文应按对外内容填写。
 
 `publishAt` / `unpublishAt` 使用带时区 ISO 时间或无时区的北京时间，开始包含、结束不包含。
