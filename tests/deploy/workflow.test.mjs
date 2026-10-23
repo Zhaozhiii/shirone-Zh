@@ -19,7 +19,7 @@ test("workflow locks one content version across validation, build and deployment
 		readFileSync(join(root, ".github/workflows/ci.yml"), "utf8"),
 	);
 	assert.deepEqual(workflow.on.repository_dispatch.types, ["content-updated"]);
-	for (const job of ["quality", "checks", "build", "site"]) {
+	for (const job of ["quality", "checks", "build"]) {
 		assert.equal(workflow.jobs[job].needs, "prepare");
 		assert.equal(
 			workflow.jobs[job].env.CONTENT_REPO_REF,
@@ -27,6 +27,13 @@ test("workflow locks one content version across validation, build and deployment
 			"${{ needs.prepare.outputs.content_sha }}",
 		);
 	}
+	assert.deepEqual(workflow.jobs.deploy.needs, [
+		"prepare",
+		"quality",
+		"checks",
+		"build",
+	]);
+	assert.doesNotMatch(JSON.stringify(workflow), /playwright|google-chrome/);
 	assert.equal(
 		workflow.jobs.deploy.env.RELEASE_SHA,
 		workflow.jobs.build.env.RELEASE_SHA,

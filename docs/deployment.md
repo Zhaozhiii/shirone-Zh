@@ -33,6 +33,8 @@ git push origin main
 推送后查看 <https://github.com/Zhaozhiii/shirone-Zh/actions>。PR 只检查和构建；`main` 的全部必要 CI 任务成功后才发布，也可在 Actions 中对 `main` 手动运行 Shirone CI。
 跨仓自动发布已启用：内容仓推送 `content/`、`config/`、`data/`、`assets/`、`public/` 或内容清单后，由 `trigger-build.yml` 使用加密 Secret `DISPATCH_TOKEN` 通知主题仓。公开内容仓无需读取令牌。主题仓在 prepare 作业中一次锁定主题和内容提交号，所有检查、预览及构建使用同一个内容 SHA；内容变更触发时使用事件携带的精确 SHA。
 
+发布流水线执行代码质量、Astro/TypeScript 检查、单元测试和双 Node.js 版本构建，不安装浏览器，也不运行 Playwright。页面外观与交互按需使用 Codex 内置浏览器检查。
+
 发布版本为主题与内容提交号共同计算出的 40 位标识（`scripts/deploy/release-version.mjs`），只改文章也会生成新版本。`release.json` 与 `/healthz` 同时记录 `release`、`code`、`content`。上传前和激活前均核对两仓 `main`，过时构建自动跳过，部署中不强制中断容器切换。只修改内容仓 README 或 docs 不会触发重建。
 
 在主题仓 Actions 手动运行 Shirone CI 时，可填写 `content_sha`（完整 40 位提交号）回滚到指定内容，留空则读取最新内容。显式回滚允许内容不是最新提交，但主题仍须是当前 main；也可按下述服务器命令回滚到已有发布版本。

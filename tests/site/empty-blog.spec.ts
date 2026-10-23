@@ -6,10 +6,6 @@ test("empty blog keeps homepage, archive and feeds usable", async ({
 }) => {
 	const response = await page.goto("/");
 	expect(response?.status()).toBe(200);
-	test.skip(
-		(await page.locator('a[href^="/posts/"]').count()) > 0,
-		"Empty-state assertions apply only while no posts are published",
-	);
 	await expect(page.locator("[data-empty-posts]")).toHaveText("暂无数据");
 	await expect(page.locator('a[href^="/posts/"]')).toHaveCount(0);
 	const licenseLink = page.locator("#site-info").getByRole("link", {
