@@ -125,3 +125,8 @@ test("invalid private YAML remains private without blocking unrelated publicatio
   write("unfinished.md","---\ntype: article\npublish: true\ntags: [unfinished\n---\nBody");
   assert.throws(build,/invalid YAML/);
 });
+
+test("an empty public Vault retains directory contracts used by theme tooling",t=>{
+  const {root,build}=fixture(t);build();
+  for(const path of ["public/images/albums","public/images/vault","src/content/posts","src/content/moments","src/content/spec"]) assert.ok(existsSync(join(root,path)));
+});

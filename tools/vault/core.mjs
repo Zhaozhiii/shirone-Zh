@@ -540,6 +540,7 @@ export function compileVault({
 		// These are generated build inputs. Never mutate the original Vault.
 		for (const folder of ["src/content", "public/images/vault", "public/images/albums"]) rmSync(safe(root, folder), {recursive:true, force:true});
 		for (const collection of ["posts","moments","spec"]) mkdirSync(join(root,"src/content",collection), {recursive:true});
+    for (const folder of ["public/images/vault","public/images/albums"]) mkdirSync(join(root,folder), {recursive:true});
 		rmSync(configRoot, { recursive: true, force: true });
 		const previousPath = join(root, ".vault-cache-files.json");
 		const previous = existsSync(previousPath)
