@@ -29,6 +29,7 @@ import {
 	compileCms,
 } from "./core.mjs";
 import schema from "./settings-schema.json" with { type: "json" };
+import { rebaseWithClock } from "./git-sync.mjs";
 
 const execute = promisify(execFile),
 	VIEW = "shirone-cms";
@@ -1199,7 +1200,7 @@ export default class ShironeCms extends Plugin {
 		const ahead = await this.git(["rev-list", "--count", "HEAD..origin/main"]);
 		if (ahead !== "0") {
 			try {
-				await this.git(["rebase", "origin/main"]);
+				await rebaseWithClock((args) => this.git(args), this.root);
 			} catch {
 				await this.git(["rebase", "--abort"]).catch(() => {});
 				this.paused = true;
