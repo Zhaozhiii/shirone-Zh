@@ -199,7 +199,14 @@ jobs:
         run: pnpm content:sync
       - name: Generate local icon collections
         run: pnpm icons:generate
-      - run: pnpm exec playwright install --with-deps chrome
+      - name: Ensure Chrome is available
+        timeout-minutes: 4
+        run: |
+          if command -v google-chrome >/dev/null 2>&1; then
+            google-chrome --version
+          else
+            pnpm exec playwright install --with-deps chrome
+          fi
       - run: pnpm exec playwright test tests/site/empty-blog.spec.ts tests/site/a11y.spec.ts --grep 'empty blog|wallpaper|首页|归档|关于'
 
   deploy:
