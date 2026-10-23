@@ -48,7 +48,7 @@ test("public theme CI uses only fixtures; private publication pins both versions
 		build.env.CONTENT_SHA,
 		"${{ steps.versions.outputs.content_sha }}",
 	);
-	assert.equal(build.env.GITHUB_SHA, "${{ steps.versions.outputs.code_sha }}");
+	assert.equal(build.env.CODE_SHA, "${{ steps.versions.outputs.code_sha }}");
 	assert.equal(
 		workflow.jobs.deploy.env.CONTENT_SHA,
 		"${{ needs.build.outputs.content_sha }}",
@@ -103,7 +103,12 @@ test("prepare preserves the dispatched SHA and rejects malformed payload before 
 test("packaging refuses content that differs from the version resolved by CI", () => {
 	const result = spawnSync(process.execPath, ["scripts/deploy/package.mjs"], {
 		cwd: root,
-		env: { ...process.env, GITHUB_SHA: code, CONTENT_SHA: "0".repeat(40) },
+		env: {
+			...process.env,
+			CODE_SHA: code,
+			GITHUB_SHA: "a".repeat(40),
+			CONTENT_SHA: "0".repeat(40),
+		},
 		encoding: "utf8",
 	});
 	assert.notEqual(result.status, 0);

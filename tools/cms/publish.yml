@@ -91,7 +91,7 @@ jobs:
           CONTENT_DIR: ${{ github.workspace }}/content
           CONTENT_SHA: ${{ steps.versions.outputs.content_sha }}
           RELEASE_SHA: ${{ steps.versions.outputs.release_sha }}
-          GITHUB_SHA: ${{ steps.versions.outputs.code_sha }}
+          CODE_SHA: ${{ steps.versions.outputs.code_sha }}
           CI: true
         run: |
           pnpm build

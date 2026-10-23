@@ -9,7 +9,10 @@ import { releaseVersion } from "./release-version.mjs";
 const head = execFileSync("git", ["rev-parse", "HEAD"], {
 	encoding: "utf8",
 }).trim();
-if (process.env.GITHUB_SHA && process.env.GITHUB_SHA !== head)
+// A private content workflow has a different immutable GITHUB_SHA. CODE_SHA
+// explicitly identifies the theme checkout while retaining the legacy guard.
+const expectedCode = process.env.CODE_SHA || process.env.GITHUB_SHA;
+if (expectedCode && expectedCode !== head)
 	throw new Error("Release SHA does not match the checked-out commit");
 let content;
 try {
