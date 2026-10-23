@@ -1,6 +1,9 @@
 import { expect, test } from "@playwright/test";
 
-test("首页导航、社交图标及默认外观在桌面和手机端可用", async ({ page }) => {
+test("首页导航、社交图标及默认外观在桌面和手机端可用", async ({
+	page,
+}, testInfo) => {
+	await page.addInitScript(() => localStorage.setItem("theme", "light"));
 	await page.goto("/");
 	await page.waitForFunction(() =>
 		document.documentElement.style
@@ -17,13 +20,29 @@ test("首页导航、社交图标及默认外观在桌面和手机端可用", as
 	await expect(nav).toContainText("网址导航");
 	await expect(nav).not.toContainText("番剧");
 	await expect(nav).not.toContainText("留言板");
+	await expect(page.locator("#navbar > div > a")).toHaveCSS(
+		"color",
+		"rgb(255, 255, 255)",
+	);
+	await expect(nav.getByRole("link", { name: "电影书籍" })).toHaveCSS(
+		"color",
+		"rgb(255, 255, 255)",
+	);
+	await expect(page.locator("#display-settings-switch svg")).toHaveCSS(
+		"color",
+		"rgb(255, 255, 255)",
+	);
+	await expect(page.locator(".banner-stage__scrim")).toHaveAttribute(
+		"style",
+		/0\.42/,
+	);
 	await page.screenshot({
-		path: "artifacts/personal-home-desktop.png",
+		path: testInfo.outputPath("personal-home-desktop.png"),
 		fullPage: true,
 	});
 	await page.setViewportSize({ width: 390, height: 844 });
 	await page.screenshot({
-		path: "artifacts/personal-home-mobile.png",
+		path: testInfo.outputPath("personal-home-mobile.png"),
 		fullPage: true,
 	});
 	expect(
@@ -31,6 +50,24 @@ test("首页导航、社交图标及默认外观在桌面和手机端可用", as
 			() => document.documentElement.scrollWidth <= innerWidth,
 		),
 	).toBe(true);
+	await expect(page.locator("#nav-drawer-switch svg")).toHaveCSS(
+		"color",
+		"rgb(255, 255, 255)",
+	);
+	await page.evaluate(() => window.scrollTo(0, innerHeight));
+	await expect(page.locator("body")).toHaveAttribute(
+		"data-banner-scrolled",
+		"true",
+	);
+	await expect(page.locator("#display-settings-switch svg")).not.toHaveCSS(
+		"color",
+		"rgb(255, 255, 255)",
+	);
+	await page.evaluate(() => window.scrollTo(0, 0));
+	await expect(page.locator("#display-settings-switch svg")).toHaveCSS(
+		"color",
+		"rgb(255, 255, 255)",
+	);
 });
 
 test("电影书籍空态支持直接访问及 Swup 导航", async ({ page }) => {
