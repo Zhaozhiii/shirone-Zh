@@ -1,0 +1,19 @@
+---
+import Card from "@components/atoms/display/Card.svelte";
+import PageHeader from "@components/atoms/display/PageHeader.astro";
+import I18nKey from "@i18n/i18nKey";
+import { i18n } from "@i18n/translation";
+import MainGridLayout from "@layouts/MainGridLayout.astro";
+import { cmsSeries } from "@utils/cms";
+import { isPageAvailable } from "@utils/page-availability";
+import { url } from "@utils/url-utils";
+
+if (!isPageAvailable("series")) return Astro.redirect("/404/");
+---
+<MainGridLayout title={i18n(I18nKey.cmsSeries)} page="series">
+  <Card color="var(--card-bg)" radius="l" class="px-8 py-6">
+    <PageHeader icon="material-symbols:collections-bookmark-outline-rounded" title={i18n(I18nKey.cmsSeries)} />
+    {cmsSeries.length === 0 ? <p>{i18n(I18nKey.noData)}</p> : <ul>{cmsSeries.map(s => <li><a href={url(`/series/${encodeURIComponent(s.key)}/`)}>{s.title}</a><p>{s.description}</p></li>)}</ul>}
+  </Card>
+</MainGridLayout>
+<style>ul { list-style: none; padding: 0; display: grid; gap: 1rem; } li { padding: 1rem; border-radius: var(--shape-corner-m); background: var(--surface-container-low); } a { color: var(--primary); font: var(--m3e-type-title-large); } p { color: var(--on-surface-variant); }</style>

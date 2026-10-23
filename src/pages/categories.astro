@@ -11,7 +11,7 @@ import PageHeader from "@components/atoms/display/PageHeader.astro";
 import I18nKey from "@i18n/i18nKey";
 import { i18n } from "@i18n/translation";
 import MainGridLayout from "@layouts/MainGridLayout.astro";
-import { getCategoryList } from "@utils/content-utils";
+import { getCategoryList, getSortedPostsList } from "@utils/content-utils";
 import { isPageAvailable } from "@/utils/page-availability";
 
 if (!isPageAvailable("categories")) {
@@ -19,10 +19,7 @@ if (!isPageAvailable("categories")) {
 }
 
 const categories = await getCategoryList();
-const totalPosts = categories.reduce(
-	(sum, category) => sum + category.count,
-	0,
-);
+const totalPosts = (await getSortedPostsList()).length;
 const categorySummary = `${categories.length} ${i18n(I18nKey.categoriesCount)} Â· ${totalPosts} ${i18n(I18nKey.postsCount)}`;
 ---
 
@@ -37,7 +34,7 @@ const categorySummary = `${categories.length} ${i18n(I18nKey.categoriesCount)} Â
 			<ul class="category-index__list">
 				{categories.map((category) => (
 					<li>
-						<a class="category-index__row" href={category.url}>
+						<a class="category-index__row" href={category.url} style={`padding-inline-start: ${0.75 + (category.depth ?? 0) * 1.25}rem`}>
 							<MetaIcon icon="material-symbols:folder-outline-rounded" />
 							<span class="category-index__name">{category.name}</span>
 							<span class="category-index__rule" aria-hidden="true"></span>

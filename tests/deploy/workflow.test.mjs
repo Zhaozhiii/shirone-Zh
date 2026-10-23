@@ -14,33 +14,53 @@ const code = execFileSync("git", ["rev-parse", "HEAD"], {
 	encoding: "utf8",
 }).trim();
 
-test("workflow locks one content version across validation, build and deployment", () => {
-	const workflow = parse(
+test("public theme CI uses only fixtures; private publication pins both versions and checks freshness", () => {
+	const publicWorkflow = parse(
 		readFileSync(join(root, ".github/workflows/ci.yml"), "utf8"),
 	);
-	assert.deepEqual(workflow.on.repository_dispatch.types, ["content-updated"]);
-	for (const job of ["build"]) {
-		assert.equal(workflow.jobs[job].needs, "prepare");
-		assert.equal(
-			workflow.jobs[job].env.CONTENT_REPO_REF,
-			// biome-ignore lint/suspicious/noTemplateCurlyInString: Literal GitHub Actions expression.
-			"${{ needs.prepare.outputs.content_sha }}",
-		);
-	}
-	assert.deepEqual(workflow.jobs.deploy.needs, ["prepare", "build"]);
-	assert.doesNotMatch(JSON.stringify(workflow), /playwright|google-chrome/);
+	assert.equal(publicWorkflow.jobs.deploy, undefined);
 	assert.equal(
-		workflow.jobs.deploy.env.RELEASE_SHA,
-		workflow.jobs.build.env.RELEASE_SHA,
+		publicWorkflow.jobs.build.env.CONTENT_DIR,
+		"artifacts/cms-fixture",
 	);
+	const notification = publicWorkflow.jobs.build.steps.find(
+		(s) => s.name === "Notify private content publication",
+	);
+	assert.match(notification.if, /pull_request/);
+	assert.match(notification.if, /refs\/heads\/main/);
+	const workflow = parse(
+		readFileSync(join(root, "tools/cms/publish.yml"), "utf8"),
+	);
+	assert.deepEqual(workflow.on.repository_dispatch.types, ["content-updated"]);
+	assert.equal(workflow.jobs.deploy.needs, "build");
+	const content = workflow.jobs.build.steps.find(
+		(s) => s.name === "Checkout exact content",
+	);
+	assert.match(content.with.ref, /github\.sha/);
+	const theme = workflow.jobs.build.steps.find(
+		(s) => s.name === "Checkout exact theme",
+	);
+	assert.equal(theme.with.ref, "${{ steps.theme.outputs.sha }}");
+	const build = workflow.jobs.build.steps.find(
+		(s) => s.name === "Build and package production release",
+	);
+	assert.equal(
+		build.env.CONTENT_SHA,
+		"${{ steps.versions.outputs.content_sha }}",
+	);
+	assert.equal(build.env.GITHUB_SHA, "${{ steps.versions.outputs.code_sha }}");
 	assert.equal(
 		workflow.jobs.deploy.env.CONTENT_SHA,
-		workflow.jobs.build.env.CONTENT_SHA,
+		"${{ needs.build.outputs.content_sha }}",
 	);
-	const freshnessChecks = workflow.jobs.deploy.steps.filter((s) =>
-		s.run?.includes("node scripts/deploy/check-current.mjs"),
+	const activation = workflow.jobs.deploy.steps.find(
+		(s) => s.name === "Upload and activate current release",
 	);
-	assert.equal(freshnessChecks.length, 2);
+	assert.equal(
+		activation.run.split("node scripts/deploy/check-current.mjs").length - 1,
+		2,
+	);
+	assert.doesNotMatch(JSON.stringify(workflow), /playwright|google-chrome/);
 });
 
 test("prepare preserves the dispatched SHA and rejects malformed payload before writing outputs", () => {

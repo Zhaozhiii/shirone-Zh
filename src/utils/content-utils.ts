@@ -2,6 +2,13 @@ import { type CollectionEntry, getCollection } from "astro:content";
 import I18nKey from "@i18n/i18nKey";
 import { i18n } from "@i18n/translation";
 import {
+	categoryAncestors,
+	categoryName,
+	cmsCategories,
+	cmsTags,
+	tagName,
+} from "@utils/cms";
+import {
 	comparePublicationEntries,
 	validatePublicationMetadata,
 } from "@utils/content-date";
@@ -50,7 +57,7 @@ export async function getSortedPostsList(): Promise<PostForList[]> {
 	// delete post.body, attach pre-calculated URL
 	const sortedPostsList: PostForList[] = sortedFullPosts.map((post) => ({
 		slug: post.id,
-		data: post.data,
+		data: { ...post.data, password: undefined },
 		url: getPostUrl(post),
 	}));
 
@@ -59,6 +66,7 @@ export async function getSortedPostsList(): Promise<PostForList[]> {
 
 export type Tag = {
 	name: string;
+	key?: string;
 	count: number;
 };
 
@@ -77,16 +85,23 @@ export async function getTagList(): Promise<Tag[]> {
 
 	// sort tags
 	const keys: string[] = Object.keys(countMap).sort((a, b) => {
-		return a.toLowerCase().localeCompare(b.toLowerCase());
+		const ai = cmsTags.findIndex((t) => t.key === a);
+		const bi = cmsTags.findIndex((t) => t.key === b);
+		return (
+			(ai < 0 ? 999999 : ai) - (bi < 0 ? 999999 : bi) ||
+			a.toLowerCase().localeCompare(b.toLowerCase())
+		);
 	});
 
-	return keys.map((key) => ({ name: key, count: countMap[key] }));
+	return keys.map((key) => ({ name: tagName(key), key, count: countMap[key] }));
 }
 
 export type Category = {
+	key?: string;
 	name: string;
 	count: number;
 	url: string;
+	depth?: number;
 };
 
 export async function getCategoryList(): Promise<Category[]> {
@@ -107,16 +122,31 @@ export async function getCategoryList(): Promise<Category[]> {
 				: String(post.data.category).trim();
 
 		count[categoryName] = count[categoryName] ? count[categoryName] + 1 : 1;
+		for (const parent of categoryAncestors(categoryName))
+			count[parent] = (count[parent] ?? 0) + 1;
 	});
 
+	const rank = (key: string) => {
+		const i = cmsCategories.findIndex((c) => c.key === key);
+		return i < 0 ? 999999 : i;
+	};
 	const lst = Object.keys(count).sort((a, b) => {
-		return a.toLowerCase().localeCompare(b.toLowerCase());
+		const ap = [...categoryAncestors(a).reverse(), a];
+		const bp = [...categoryAncestors(b).reverse(), b];
+		for (let i = 0; i < Math.min(ap.length, bp.length); i++) {
+			const difference = rank(ap[i]) - rank(bp[i]);
+			if (difference) return difference;
+			if (ap[i] !== bp[i]) return ap[i].localeCompare(bp[i]);
+		}
+		return ap.length - bp.length;
 	});
 
 	const ret: Category[] = [];
 	for (const c of lst) {
 		ret.push({
-			name: c,
+			key: c,
+			name: categoryName(c),
+			depth: categoryAncestors(c).length,
 			count: count[c],
 			url: getCategoryUrl(c),
 		});

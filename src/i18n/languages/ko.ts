@@ -401,4 +401,11 @@ export const ko: Translation = {
 		"위 주소를 선호하는 RSS/Atom 리더기(NetNewsWire, Feedly, Inoreader, Follow 등)에 등록하여 새 글 알림을 받아보세요.",
 	[Key.feedOpenXml]: "원본 XML 보기",
 	[Key.feedRecentPosts]: "피드 최신 글",
+	[Key.cmsSeries]: "시리즈",
+	[Key.cmsMovie]: "영화",
+	[Key.cmsBook]: "도서",
+	[Key.cmsPlanned]: "예정",
+	[Key.cmsInProgress]: "진행 중",
+	[Key.cmsCompleted]: "완료",
+	[Key.cmsRating]: "평점",
 };

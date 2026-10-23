@@ -29,6 +29,8 @@ export interface BannerHomeLink {
  * 键名是 navBar `pageKey` 语义的子集；`home` 与 `archive` 永远开放，不提供开关。
  */
 export type PageToggles = {
+	/** 系列页；未指定时保持可用。 */
+	series?: boolean;
 	/** 友链页 /friends/ */
 	friends: boolean;
 	/** 留言板页 /guestbook/ */

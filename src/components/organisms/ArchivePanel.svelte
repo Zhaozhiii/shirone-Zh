@@ -5,6 +5,7 @@
  * 顶部显示筛选头（面包屑）——索引页链接 › 当前筛选值，一键回溯到分类/标签索引页；
  * 无筛选时显示分组切换，可按年 / 按分类 / 按标签切换全量归档的分组。
  */
+
 import ArchiveList, {
 	type ArchiveGroup,
 	type ArchiveItem,
@@ -14,6 +15,7 @@ import SegmentedButton from "@components/atoms/selection/SegmentedButton.svelte"
 import I18nKey from "@i18n/i18nKey";
 import { i18n } from "@i18n/translation";
 import Icon from "@iconify/svelte";
+import { categoryAncestors, categoryName, tagName } from "@utils/cms";
 import { formatCalendarDate } from "@utils/content-date";
 import { getPostUrlBySlug, url } from "@utils/url-utils";
 import { onMount } from "svelte";
@@ -83,14 +85,14 @@ const filterCrumb = $derived.by(() => {
 		return {
 			href: url("/categories/"),
 			label: i18n(I18nKey.categories),
-			value: category,
+			value: categoryName(category),
 		};
 	}
 	if (tag) {
 		return {
 			href: url("/tags/"),
 			label: i18n(I18nKey.tags),
-			value: `#${tag}`,
+			value: `#${tagName(tag)}`,
 		};
 	}
 	return null;
@@ -106,7 +108,12 @@ const groupOptions = [
 const filtered = $derived(
 	sortedPosts.filter((p) => {
 		if (uncategorized && p.data.category) return false;
-		if (category && p.data.category !== category) return false;
+		if (
+			category &&
+			p.data.category !== category &&
+			!categoryAncestors(p.data.category ?? "").includes(category)
+		)
+			return false;
 		if (tag && !p.data.tags.includes(tag)) return false;
 		return true;
 	}),
@@ -121,8 +128,8 @@ function toItem(post: Post): ArchiveItem {
 		title: post.data.title,
 		href: post.url ?? getPostUrlBySlug(post.slug),
 		date: formatDate(post.data.published),
-		category: post.data.category ?? undefined,
-		tags: post.data.tags,
+		category: post.data.category ? categoryName(post.data.category) : undefined,
+		tags: post.data.tags.map(tagName),
 	};
 }
 
@@ -141,7 +148,12 @@ const groups = $derived.by((): ArchiveGroup[] => {
 	};
 	if (groupBy === "category") {
 		for (const p of filtered) {
-			add(p.data.category ?? i18n(I18nKey.uncategorized), toItem(p));
+			add(
+				p.data.category
+					? categoryName(p.data.category)
+					: i18n(I18nKey.uncategorized),
+				toItem(p),
+			);
 		}
 	} else if (groupBy === "tag") {
 		for (const p of filtered) {
@@ -173,7 +185,7 @@ const tagStats = $derived.by(() => {
 		for (const t of p.data.tags) counts.set(t, (counts.get(t) ?? 0) + 1);
 	}
 	return [...counts.entries()]
-		.map(([name, count]) => ({ name, count }))
+		.map(([key, count]) => ({ key, name: tagName(key), count }))
 		.sort((a, b) => a.name.toLowerCase().localeCompare(b.name.toLowerCase()));
 });
 
@@ -249,11 +261,11 @@ $effect(() => {
 		<!-- 按标签视图：标签云 + Top 10 排行（Firefly /tags/ 同款布局，M3E token 实现） -->
 		{#if tagStats.length > 0}
 			<div class="archive-panel__tags-cloud">
-				{#each tagStats as t (t.name)}
+				{#each tagStats as t (t.key)}
 					<button
 						type="button"
 						class="archive-tags__pill"
-						onclick={() => selectTag(t.name)}
+						onclick={() => selectTag(t.key)}
 					>
 						<span class="archive-tags__pill-name">{t.name}</span>
 						<span class="archive-tags__pill-count">{t.count}</span>
@@ -264,12 +276,12 @@ $effect(() => {
 				<section class="archive-panel__tags-top">
 					<h2 class="archive-panel__tags-top-title">Top 10</h2>
 					<ol class="archive-tags__top-list">
-						{#each topTags as t, i (t.name)}
+						{#each topTags as t, i (t.key)}
 							<li>
 								<button
 									type="button"
 									class="archive-tags__row"
-									onclick={() => selectTag(t.name)}
+									onclick={() => selectTag(t.key)}
 								>
 									<span class="archive-tags__rank">{i + 1}</span>
 									<span class="archive-tags__row-main">

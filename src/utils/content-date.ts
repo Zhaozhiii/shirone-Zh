@@ -2,6 +2,7 @@ import { siteConfig } from "@/config/siteConfig";
 
 export type PublicationMetadata = {
 	pinned?: boolean;
+	order?: number;
 	published: Date;
 	publishedAt?: Date;
 	updated?: Date;
@@ -159,6 +160,8 @@ export function comparePublicationEntries(
 ): number {
 	if (a.data.pinned !== b.data.pinned) return a.data.pinned ? -1 : 1;
 
+	const orderDifference = (a.data.order ?? 0) - (b.data.order ?? 0);
+	if (orderDifference !== 0) return orderDifference;
 	const calendarDifference =
 		b.data.published.getTime() - a.data.published.getTime();
 	if (calendarDifference !== 0) return calendarDifference;

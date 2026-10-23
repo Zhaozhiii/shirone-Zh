@@ -67,7 +67,7 @@ const softCategory = !isHome && !isArchive && postCategory ? postCategory : "";
 						variant="tonal"
 						href={cat.url}
 						selected={false}
-						soft={cat.name === softCategory}
+						soft={(cat.key ?? cat.name) === softCategory}
 						class="shrink-0"
 					>
 						{cat.name}

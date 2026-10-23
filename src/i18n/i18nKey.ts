@@ -1,4 +1,11 @@
 enum I18nKey {
+	cmsSeries = "cmsSeries",
+	cmsMovie = "cmsMovie",
+	cmsBook = "cmsBook",
+	cmsPlanned = "cmsPlanned",
+	cmsInProgress = "cmsInProgress",
+	cmsCompleted = "cmsCompleted",
+	cmsRating = "cmsRating",
 	home = "home",
 	media = "media",
 	mediaDescription = "mediaDescription",

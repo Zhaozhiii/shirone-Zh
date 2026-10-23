@@ -35,7 +35,7 @@ const tagSummary = `${tags.length} ${i18n(I18nKey.tagsCount)} · ${totalPosts} $
 			<div class="tag-index__cloud">
 				{tags.map((tag) => (
 					<Chip
-						href={getTagUrl(tag.name)}
+						href={getTagUrl(tag.key ?? tag.name)}
 						variant="tonal"
 						class="tag-index__chip"
 						label={`View all posts with the ${tag.name} tag`}

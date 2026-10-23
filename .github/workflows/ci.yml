@@ -1,188 +1,74 @@
-name: Shirone CI
-
+name: Shirone theme checks
 on:
   push:
-    branches: [main]
+    branches:
+      - main
   pull_request:
-    branches: [main]
-  workflow_dispatch:
-    inputs:
-      content_sha:
-        description: Optional full content SHA for a deliberate rollback
-        required: false
-        type: string
-  repository_dispatch:
-    types: [content-updated]
-
+    branches:
+      - main
+  workflow_dispatch: {}
 concurrency:
   group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.event_name }}-${{ github.ref }}
-  # Never interrupt a production deployment halfway through activation.
   cancel-in-progress: ${{ github.event_name == 'pull_request' }}
-
 permissions:
   contents: read
-
-env:
-  CONTENT_REPO_URL: https://github.com/Zhaozhiii/Shirone-Zh-Content.git
-
 jobs:
-  prepare:
-    name: Resolve code and content versions
-    runs-on: ubuntu-latest
-    timeout-minutes: 5
-    outputs:
-      code_sha: ${{ steps.versions.outputs.code_sha }}
-      content_sha: ${{ steps.versions.outputs.content_sha }}
-      release_sha: ${{ steps.versions.outputs.release_sha }}
-    steps:
-      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
-      - uses: actions/setup-node@cdca7365b2dadb8aad0a33bc7601856ffabcc48e
-        with:
-          node-version: 24
-      - name: Lock both repository versions
-        id: versions
-        env:
-          REQUESTED_CONTENT_SHA: ${{ github.event.client_payload.sha || inputs.content_sha }}
-        run: node scripts/deploy/prepare-ci.mjs
-
   build:
-    name: Validate and build (Node.js 24)
-    needs: prepare
+    name: Public theme checks (no private content)
     runs-on: ubuntu-latest
     timeout-minutes: 25
     env:
       CI: true
-      CONTENT_REPO_REF: ${{ needs.prepare.outputs.content_sha }}
-      CONTENT_SHA: ${{ needs.prepare.outputs.content_sha }}
-      RELEASE_SHA: ${{ needs.prepare.outputs.release_sha }}
-
+      CONTENT_DIR: artifacts/cms-fixture
     steps:
       - name: Checkout
-        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
-
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
       - name: Set up pnpm
-        uses: pnpm/action-setup@a7487c7e89a18df4991f7f222e4898a00d66ddda # v4.1.0
+        uses: pnpm/action-setup@a7487c7e89a18df4991f7f222e4898a00d66ddda
         with:
-          # Omit the version so the action reads `packageManager` from package.json.
           run_install: false
-
       - name: Set up Node.js
-        uses: actions/setup-node@cdca7365b2dadb8aad0a33bc7601856ffabcc48e # v4.3.0
+        uses: actions/setup-node@cdca7365b2dadb8aad0a33bc7601856ffabcc48e
         with:
           node-version: 24
           cache: pnpm
           cache-dependency-path: pnpm-lock.yaml
-
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
-
       - name: Materialize blog content
-        run: pnpm content:sync
-
+        run: |-
+          node tools/cms/fixture.mjs
+          node scripts/content/sync.mjs
       - name: Run Biome
         run: pnpm exec biome ci ./src --reporter=github
-
       - name: Check Astro diagnostics
         run: pnpm exec astro check
-
       - name: Validate atom manifest
         run: pnpm check:manifest
-
       - name: Check TypeScript declarations
         run: pnpm type-check
-
       - name: Run unit tests
         run: node --test --test-concurrency=1 "tests/**/*.test.mjs"
-
       - name: Build production site
         run: pnpm build
-
-      - name: Package Node.js release
-        run: node scripts/deploy/package.mjs
-
-      - name: Upload production release
-        if: github.event_name != 'pull_request'
-        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+      - name: Build Obsidian CMS plugin
+        run: node tools/cms/build.mjs artifacts/cms
+      - name: Upload CMS plugin
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
         with:
-          name: release-${{ needs.prepare.outputs.release_sha }}
-          path: |
-            artifacts/release.tar.gz
-            artifacts/release.tar.gz.sha256
-          retention-days: 7
-          if-no-files-found: error
-
-  deploy:
-    name: Deploy blog.zhiii.top
-    needs: [prepare, build]
-    if: github.event_name != 'pull_request' && github.ref == 'refs/heads/main'
-    runs-on: ubuntu-latest
-    timeout-minutes: 10
-    concurrency:
-      group: shirone-production
-      cancel-in-progress: false
-    env:
-      SERVER_HOST: ${{ vars.SERVER_HOST }}
-      SERVER_USER: ${{ vars.SERVER_USER }}
-      SERVER_KNOWN_HOSTS: ${{ vars.SERVER_KNOWN_HOSTS }}
-      RELEASE_SHA: ${{ needs.prepare.outputs.release_sha }}
-      CODE_SHA: ${{ needs.prepare.outputs.code_sha }}
-      CONTENT_SHA: ${{ needs.prepare.outputs.content_sha }}
-      ALLOW_CONTENT_ROLLBACK: ${{ github.event_name == 'workflow_dispatch' && inputs.content_sha != '' }}
-    steps:
-      - name: Checkout exact release
-        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
-
-      - uses: actions/setup-node@cdca7365b2dadb8aad0a33bc7601856ffabcc48e
-        with:
-          node-version: 24
-
-      - name: Download production release
-        uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4.3.0
-        with:
-          name: release-${{ needs.prepare.outputs.release_sha }}
-          path: release
-
-      - name: Verify release archive
-        working-directory: release
-        run: sha256sum --check release.tar.gz.sha256
-
-      - name: Configure deployment SSH
+          name: shirone-cms
+          path: artifacts/cms/
+          retention-days: 30
+      - name: Notify private content publication
+        if: github.event_name != 'pull_request' && github.ref == 'refs/heads/main'
         env:
-          SERVER_SSH_KEY: ${{ secrets.SERVER_SSH_KEY }}
-        run: |
-          test -n "$SERVER_HOST" && test -n "$SERVER_USER"
-          test -n "$SERVER_SSH_KEY" && test -n "$SERVER_KNOWN_HOSTS"
-          install -d -m 700 ~/.ssh
-          printf '%s\n' "$SERVER_SSH_KEY" > ~/.ssh/id_ed25519
-          chmod 600 ~/.ssh/id_ed25519
-          printf '%s\n' "$SERVER_KNOWN_HOSTS" > ~/.ssh/known_hosts
-
-      - name: Skip superseded commits
-        id: current
-        run: |
-          current="$(node scripts/deploy/check-current.mjs)"
-          echo "deploy=$current" >> "$GITHUB_OUTPUT"
-
-      - name: Upload and activate release
-        id: activate
-        if: steps.current.outputs.deploy == 'true'
-        run: |
-          scp -o BatchMode=yes -o StrictHostKeyChecking=yes release/release.tar.gz "$SERVER_USER@$SERVER_HOST:/srv/shirone-blog/site/incoming/$RELEASE_SHA.tar.gz"
-          scp -o BatchMode=yes -o StrictHostKeyChecking=yes release/release.tar.gz.sha256 "$SERVER_USER@$SERVER_HOST:/srv/shirone-blog/site/incoming/$RELEASE_SHA.tar.gz.sha256"
-          current="$(node scripts/deploy/check-current.mjs)"
-          if [ "$current" != true ]; then
-            echo 'Newer code or content arrived during upload; activation skipped.' >> "$GITHUB_STEP_SUMMARY"
-            exit 0
-          fi
-          ssh -o BatchMode=yes -o StrictHostKeyChecking=yes "$SERVER_USER@$SERVER_HOST" "/usr/local/bin/shirone-blog-release activate $RELEASE_SHA"
-          echo 'deployed=true' >> "$GITHUB_OUTPUT"
-
-      - name: Verify public release metadata
-        if: steps.activate.outputs.deployed == 'true'
-        run: |
-          curl --fail --silent --show-error https://blog.zhiii.top/healthz | python3 -c 'import json,os,sys; d=json.load(sys.stdin); assert all(d[k] == os.environ[v] for k,v in [("release","RELEASE_SHA"),("code","CODE_SHA"),("content","CONTENT_SHA")])'
-          echo "Published $RELEASE_SHA (code $CODE_SHA, content $CONTENT_SHA) to https://blog.zhiii.top" >> "$GITHUB_STEP_SUMMARY"
-
-      - name: Remove temporary SSH key
-        if: always()
-        run: rm -f ~/.ssh/id_ed25519
+          CONTENT_WRITE_KEY: ${{ secrets.CONTENT_WRITE_KEY }}
+          CMS_GITHUB_KNOWN_HOSTS: ${{ vars.CMS_GITHUB_KNOWN_HOSTS }}
+        run: |-
+          test -n "$CONTENT_WRITE_KEY" && test -n "$CMS_GITHUB_KNOWN_HOSTS"
+          printf '%s\n' "$CONTENT_WRITE_KEY" > "$RUNNER_TEMP/cms-content-write"
+          chmod 600 "$RUNNER_TEMP/cms-content-write"
+          printf '%s\n' "$CMS_GITHUB_KNOWN_HOSTS" > "$RUNNER_TEMP/cms-github-known-hosts"
+          export GIT_SSH_COMMAND="ssh -i $RUNNER_TEMP/cms-content-write -o IdentitiesOnly=yes -o UserKnownHostsFile=$RUNNER_TEMP/cms-github-known-hosts -o StrictHostKeyChecking=yes"
+          node tools/cms/notify-content.mjs
+          rm -f "$RUNNER_TEMP/cms-content-write"

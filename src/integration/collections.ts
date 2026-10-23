@@ -39,6 +39,12 @@ function normaliseBase(value: string): string {
  * against the git-clone workflow works unchanged in package mode.
  */
 const postSchemaObject = z.object({
+	order: z.number().optional(),
+	series: z.string().optional(),
+	seriesOrder: z.number().optional(),
+	categoryAncestors: z.array(z.string()).optional(),
+	alias: z.string().optional(),
+	permalink: z.string().optional(),
 	title: z.string(),
 	published: z.date(),
 	publishedAt: z.date().optional(),

@@ -10,6 +10,7 @@ import path from "node:path";
 import PostCard from "@components/atoms/blog/PostCard.astro";
 import I18nKey from "@i18n/i18nKey";
 import { i18n } from "@i18n/translation";
+import { categoryName, tagName } from "@utils/cms";
 import { formatDateToYYYYMMDD } from "@utils/date-utils";
 import { isEncryptedPost } from "@utils/post-encryption";
 import { getProjectImageLoader } from "@utils/project-images";
@@ -134,9 +135,12 @@ const randomCover = randomCoverOptions
 	: undefined;
 
 const categoryLink = category
-	? { name: category, href: getCategoryUrl(category) }
+	? { name: categoryName(category), href: getCategoryUrl(category) }
 	: null;
-const tagLinks = tags.map((t) => ({ name: t.trim(), href: getTagUrl(t) }));
+const tagLinks = tags.map((t) => ({
+	name: tagName(t.trim()),
+	href: getTagUrl(t),
+}));
 
 const isEncrypted = isEncryptedPost(entry.data);
 const words = remarkPluginFrontmatter.words ?? 0;

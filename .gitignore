@@ -98,3 +98,10 @@ src/generated/*.tmp
 /public/assets/music/
 /public/assets/projects/
 /public/assets/anime/*.webp
+/.cms-cache/
+/.cms-cache-files.json
+/src/user/cms-data.json
+/artifacts/cms/
+/artifacts/cms-fixture/
+__pycache__/
+*.pyc

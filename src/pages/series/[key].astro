@@ -1,0 +1,27 @@
+---
+import Card from "@components/atoms/display/Card.svelte";
+import MainGridLayout from "@layouts/MainGridLayout.astro";
+import { cmsSeries } from "@utils/cms";
+import { getSortedPosts } from "@utils/content-utils";
+import { isPageAvailable } from "@utils/page-availability";
+import { getPostUrl } from "@utils/url-utils";
+export function getStaticPaths() {
+	return isPageAvailable("series")
+		? cmsSeries.map((series) => ({
+				params: { key: series.key },
+				props: { series },
+			}))
+		: [];
+}
+const { series } = Astro.props;
+const posts = (await getSortedPosts())
+	.filter((p) => p.data.series === series.key)
+	.sort((a, b) => (a.data.seriesOrder ?? 0) - (b.data.seriesOrder ?? 0));
+---
+<MainGridLayout title={series.title} description={series.description} page="series">
+  <Card color="var(--card-bg)" radius="l" class="px-8 py-6">
+    <h1>{series.title}</h1><p>{series.description}</p>
+    <ol>{posts.map(p => <li><a href={getPostUrl(p)}>{p.data.title}</a><p>{p.data.description}</p></li>)}</ol>
+  </Card>
+</MainGridLayout>
+<style>h1 { font: var(--m3e-type-headline-large); } a { color: var(--primary); } li { padding: .75rem; } p { color: var(--on-surface-variant); }</style>

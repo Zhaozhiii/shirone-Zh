@@ -29,6 +29,7 @@ import {
 import { dirname, join, resolve } from "node:path";
 import { CONFIG_DIRECTORY } from "./config-domains.mjs";
 import { syncUserConfig } from "./config-overlay.mjs";
+import { compileCms } from "../../tools/cms/core.mjs";
 import {
 	canonicalGitUrl,
 	LOCK_FILE,
@@ -60,11 +61,15 @@ const NON_CONTENT_DIRECTORIES = new Set([
 	"node_modules",
 	"scripts",
 	"templates",
+	"cms",
+	".obsidian",
+	"管理面板",
 ]);
 
 const args = new Set(process.argv.slice(2));
 const options = {
 	dryRun: args.has("--dry-run"),
+	production: args.has("--production"),
 	watchMode: args.has("--watch"),
 	prune: !args.has("--no-prune"),
 	quiet: args.has("--quiet"),
@@ -72,9 +77,15 @@ const options = {
 };
 const unknownArgs = [...args].filter(
 	(argument) =>
-		!["--dry-run", "--watch", "--no-prune", "--quiet", "--help", "-h"].includes(
-			argument,
-		),
+		![
+			"--dry-run",
+			"--production",
+			"--watch",
+			"--no-prune",
+			"--quiet",
+			"--help",
+			"-h",
+		].includes(argument),
 );
 
 if (options.help) {
@@ -208,7 +219,9 @@ function assertReusableWorkingCopy(source, workingCopy, commit, origin) {
 				"Please restore the working copy first, or remove this variable and pull again.",
 		);
 	}
-	log(`Reusing local content working copy ${WORKING_COPY_DIR} @ ${commit.slice(0, 8)}`);
+	log(
+		`Reusing local content working copy ${WORKING_COPY_DIR} @ ${commit.slice(0, 8)}`,
+	);
 	return { directory: workingCopy, commit };
 }
 
@@ -265,7 +278,9 @@ function ensureWorkingCopy(source) {
 			redact: source.url,
 		});
 		origin = source.url;
-		log(`Updated origin in ${WORKING_COPY_DIR}/ to match current content source`);
+		log(
+			`Updated origin in ${WORKING_COPY_DIR}/ to match current content source`,
+		);
 	}
 
 	if (!allowFetch) {
@@ -448,9 +463,15 @@ function runSync() {
 	}
 
 	// 配置覆盖必须在挂载之后：类型校验会读到内容仓刚物化过来的 src/data/*.ts。
+	const cms = compileCms({
+		sourceRoot,
+		root: ROOT,
+		production: options.production,
+		dryRun: options.dryRun,
+	});
 	const config = syncUserConfig({
 		root: ROOT,
-		sourceRoot,
+		sourceRoot: cms && !options.dryRun ? cms.configRoot : sourceRoot,
 		dryRun: options.dryRun,
 		warn,
 		previousConfigFiles,
@@ -499,7 +520,9 @@ function runSync() {
 			`${commit ? `, content commit ${commit.slice(0, 8)}` : ""}`,
 	);
 	if (skipped.length > 0) {
-		log(`Content repository did not provide the following directories, corresponding code repository paths kept unchanged: ${skipped.join(", ")}`);
+		log(
+			`Content repository did not provide the following directories, corresponding code repository paths kept unchanged: ${skipped.join(", ")}`,
+		);
 	}
 	return lock;
 }
@@ -508,7 +531,9 @@ function runWatch() {
 	const resolved = resolveContentSource(ROOT);
 	if (resolved.mode === "local") return;
 	if (resolved.source.type !== "path") {
-		throw new Error(`--watch only supports local content directories with source.type = "path".`);
+		throw new Error(
+			`--watch only supports local content directories with source.type = "path".`,
+		);
 	}
 	const sourceRoot = resolve(ROOT, resolved.source.path);
 	log(`Watching ${sourceRoot}, press Ctrl+C to stop`);

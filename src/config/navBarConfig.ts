@@ -23,6 +23,12 @@ import { isPageAvailable } from "../utils/page-availability.ts";
  * children 全被过滤的分组整组隐藏——默认结构与 `nav-bar.yaml` 覆盖共用同一过滤点。
  */
 export const LinkPresets: Record<string, NavBarLink> = {
+	Series: {
+		name: i18n(I18nKey.cmsSeries),
+		url: "/series/",
+		icon: "material-symbols:collections-bookmark-outline-rounded",
+		pageKey: "series",
+	},
 	Home: {
 		name: i18n(I18nKey.home),
 		url: "/",

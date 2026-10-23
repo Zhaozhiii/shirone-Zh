@@ -87,6 +87,7 @@ export async function collectAllText() {
 		const userConfigFiles = await walkDirectory(join(projectRoot, "src/user"), [
 			".ts",
 			".js",
+			".json",
 		]);
 		for (const file of [...configFiles, ...userConfigFiles]) {
 			const text = await readFile(file, "utf8");

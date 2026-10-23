@@ -9,6 +9,10 @@ import { z } from "astro/zod";
  * 的 `data` 保持强类型。
  */
 export interface PostsSchemaOutput {
+	order?: number;
+	series?: string;
+	seriesOrder?: number;
+	categoryAncestors?: string[];
 	title: string;
 	published: Date;
 	publishedAt?: Date;
@@ -54,6 +58,10 @@ export interface MomentsSchemaOutput {
 }
 
 const postsSchema: z.ZodType<PostsSchemaOutput> = z.object({
+	order: z.number().optional(),
+	series: z.string().optional(),
+	seriesOrder: z.number().optional(),
+	categoryAncestors: z.array(z.string()).optional(),
 	title: z.string(),
 	published: z.date(),
 	publishedAt: z.date().optional(),

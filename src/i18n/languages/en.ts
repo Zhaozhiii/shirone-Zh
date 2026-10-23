@@ -402,4 +402,11 @@ export const en: Translation = {
 		"Add this feed URL to your favorite RSS/Atom reader (e.g. NetNewsWire, Feedly, Inoreader, Follow) to get instant updates.",
 	[Key.feedOpenXml]: "View Raw XML",
 	[Key.feedRecentPosts]: "Recent Posts in Feed",
+	[Key.cmsSeries]: "Series",
+	[Key.cmsMovie]: "Film",
+	[Key.cmsBook]: "Book",
+	[Key.cmsPlanned]: "Planned",
+	[Key.cmsInProgress]: "In progress",
+	[Key.cmsCompleted]: "Completed",
+	[Key.cmsRating]: "Rating",
 };

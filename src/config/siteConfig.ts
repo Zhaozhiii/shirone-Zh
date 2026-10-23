@@ -37,6 +37,7 @@ export const siteConfig: SiteConfig = withUserConfig("site", {
 	// （如技能页可用 = pages.skills && skillsConfig.enable），判定见 src/utils/page-availability.ts。
 	// home 与 archive 永远开放，不提供开关。
 	pages: {
+		series: true,
 		friends: true, // 友链页 /friends/
 		guestbook: true, // 留言板页 /guestbook/
 		sponsor: true, // 打赏页 /sponsor/（与 sponsorConfig.enable 取 AND）

@@ -406,4 +406,11 @@ export const id: Translation = {
 		"Tambahkan URL umpan di atas ke pembaca RSS/Atom favorit Anda (seperti NetNewsWire, Feedly, Inoreader, Follow) untuk menerima pembaruan.",
 	[Key.feedOpenXml]: "Lihat XML Asli",
 	[Key.feedRecentPosts]: "Artikel Terbaru di Umpan",
+	[Key.cmsSeries]: "Seri",
+	[Key.cmsMovie]: "Film",
+	[Key.cmsBook]: "Buku",
+	[Key.cmsPlanned]: "Direncanakan",
+	[Key.cmsInProgress]: "Sedang berlangsung",
+	[Key.cmsCompleted]: "Selesai",
+	[Key.cmsRating]: "Penilaian",
 };

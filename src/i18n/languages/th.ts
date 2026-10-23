@@ -385,4 +385,11 @@ export const th: Translation = {
 		"เพิ่ม URL ฟีดด้านบนลงในโปรแกรมอ่าน RSS/Atom (เช่น NetNewsWire, Feedly, Inoreader, Follow) เพื่อรับการแจ้งเตือนบทความใหม่",
 	[Key.feedOpenXml]: "ดู XML ต้นฉบับ",
 	[Key.feedRecentPosts]: "บทความล่าสุดในฟีด",
+	[Key.cmsSeries]: "ชุดบทความ",
+	[Key.cmsMovie]: "ภาพยนตร์",
+	[Key.cmsBook]: "หนังสือ",
+	[Key.cmsPlanned]: "วางแผนไว้",
+	[Key.cmsInProgress]: "กำลังดำเนินการ",
+	[Key.cmsCompleted]: "เสร็จสิ้น",
+	[Key.cmsRating]: "คะแนน",
 };

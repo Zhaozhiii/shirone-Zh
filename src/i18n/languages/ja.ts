@@ -402,4 +402,11 @@ export const ja: Translation = {
 		"上記の購読 URL をお好みの RSS/Atom リーダー（NetNewsWire、Feedly、Inoreader、Follow など）に登録すると、最新記事が通知されます。",
 	[Key.feedOpenXml]: "XML を直接表示",
 	[Key.feedRecentPosts]: "最新の配信記事",
+	[Key.cmsSeries]: "シリーズ",
+	[Key.cmsMovie]: "映画",
+	[Key.cmsBook]: "書籍",
+	[Key.cmsPlanned]: "予定",
+	[Key.cmsInProgress]: "進行中",
+	[Key.cmsCompleted]: "完了",
+	[Key.cmsRating]: "評価",
 };
