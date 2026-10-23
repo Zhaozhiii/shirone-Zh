@@ -1295,7 +1295,7 @@ export default class ShironeCms extends Plugin {
 	}
 	async checkStatus() {
 		try {
-			const sha = this.lastSha || (await this.git(["rev-parse", "HEAD"]));
+			const sha = await this.git(["rev-parse", "HEAD"]);
 			const response = await requestUrl({
 				url: `https://blog.zhiii.top/healthz?cms=${Date.now()}`,
 				throw: false,
