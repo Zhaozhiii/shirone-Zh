@@ -140,7 +140,7 @@ test("legacy migration preserves relative article images and splits navigation g
   write("cms/compass/links.md",noteText({name:"Research",key:"research",entries:[{label:"Example",href:"https://example.com"}]}));
   mkdirSync(vault);migrate(source,vault,root);
   assert.equal(files(vault).filter(p=>p.endsWith(".mp3")).length,0);
-  assert.equal(files(join(root,"site/public/images/branding")).length,1);
+  assert.equal(files(join(root,"site/assets/images")).length,1);
   compileVault({sourceRoot:vault,root});
   assert.match(readFileSync(join(root,"src/content/posts/original.md"),"utf8"),/\/images\/vault\/[a-f0-9]+\.png/);
   assert.match(readFileSync(join(root,"src/data/compass.ts"),"utf8"),/Research/);

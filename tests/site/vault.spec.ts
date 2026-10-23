@@ -11,7 +11,7 @@ test("native Vault keeps existing public pages and excludes private content", as
 
 test("code-owned branding and whitelist images load",async ({page})=>{
   await page.goto("/",{waitUntil:"domcontentloaded"});
-  const image=page.locator('img[src*="/images/branding/"]').first();
+  const image=page.locator('img[src*="avatar"],img[src*="/images/branding/"]').first();
   await expect(image).toBeAttached();
   await expect.poll(()=>image.evaluate((img:HTMLImageElement)=>img.complete && img.naturalWidth>0)).toBe(true);
 });

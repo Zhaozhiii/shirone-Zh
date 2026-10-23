@@ -93,6 +93,10 @@ export function migrate(source, vault, theme) {
     const mapped=assets.get(value) || assets.get(value.replace(/^\//,""));
     if(!mapped)return value;
     const file=join(vault,mapped),bytes=readFileSync(file);
+    if(value.startsWith("assets/")) {
+      const dest=join(theme,"site",value);mkdirSync(dirname(dest),{recursive:true});copyFileSync(file,dest);
+      return value;
+    }
     const url="images/branding/"+createHash("sha256").update(bytes).digest("hex")+extname(file);
     const dest=join(theme,"site/public",url);mkdirSync(dirname(dest),{recursive:true});copyFileSync(file,dest);
     return "/"+url;

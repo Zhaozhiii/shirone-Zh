@@ -357,7 +357,7 @@ export function compileVault({
     if (!found) {
       // Absolute URLs of code-owned site assets may remain unchanged.
       if (value.startsWith("/") && existsSync(safe(join(root,"site/public"), value.slice(1)))) return value;
-      if (value.startsWith("assets/") && existsSync(safe(join(root,"src"), value))) return value;
+      if (value.startsWith("assets/") && (existsSync(safe(join(root,"src"), value)) || existsSync(safe(join(root,"site"),value)))) return value;
       throw new Error(`A published resource is missing or ambiguous: ${value}`);
     }
     if (!allowedAssets.test(found)) throw new Error("Only supported attachments may be published");

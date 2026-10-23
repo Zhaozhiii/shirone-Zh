@@ -19,9 +19,9 @@ banner:
     opacity: 0.42
   src:
     desktop:
-      - /images/branding/ebf17db4241633879623f7dfacfff7788364ab957329a84306c46d7f49d6cc9b.png
+      - assets/images/banner/shinjuku.png
     mobile:
-      - /images/branding/ebf17db4241633879623f7dfacfff7788364ab957329a84306c46d7f49d6cc9b.png
+      - assets/images/banner/shinjuku.png
   homeText:
     title: Zhaozhiiiのblog
     subtitle:
