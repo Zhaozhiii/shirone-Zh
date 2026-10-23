@@ -3,7 +3,12 @@ import { resolve } from "node:path";
 import handler from "serve-handler";
 
 /** Serve only the generated site; never expose the release directory itself. */
-export function createBlogServer({ root, release = "development" }) {
+export function createBlogServer({
+	root,
+	release = "development",
+	code,
+	content,
+}) {
 	return createServer(async (request, response) => {
 		response.setHeader("X-Content-Type-Options", "nosniff");
 		response.setHeader("Cache-Control", "no-cache");
@@ -30,7 +35,7 @@ export function createBlogServer({ root, release = "development" }) {
 			response.end(
 				request.method === "HEAD"
 					? undefined
-					: JSON.stringify({ status: "ok", release }),
+					: JSON.stringify({ status: "ok", release, code, content }),
 			);
 			return;
 		}

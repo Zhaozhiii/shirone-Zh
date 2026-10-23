@@ -31,11 +31,15 @@ git push origin main
 ```
 
 推送后查看 <https://github.com/Zhaozhiii/shirone-Zh/actions>。PR 只检查和构建；`main` 的全部必要 CI 任务成功后才发布，也可在 Actions 中对 `main` 手动运行 Shirone CI。
-CI 通过 `CONTENT_REPO_URL` 拉取公开内容仓的 `main`，在检查、预览和构建前同步。首次迁移须先提交并推送内容仓，再提交并推送代码仓，否则 CI 会读到原始模板。当前内容仓的跨仓触发工作流仅保留为 `.example`，尚未启用；仅推送内容仓不会自动部署。现有服务器发布版本以代码提交 SHA 命名，启用内容单独触发前还需完善内容版本与发布版本的关联。
+跨仓自动发布已启用：内容仓推送 `content/`、`config/`、`data/`、`assets/`、`public/` 或内容清单后，由 `trigger-build.yml` 使用加密 Secret `DISPATCH_TOKEN` 通知主题仓。公开内容仓无需读取令牌。主题仓在 prepare 作业中一次锁定主题和内容提交号，所有检查、预览及构建使用同一个内容 SHA；内容变更触发时使用事件携带的精确 SHA。
+
+发布版本为主题与内容提交号共同计算出的 40 位标识（`scripts/deploy/release-version.mjs`），只改文章也会生成新版本。`release.json` 与 `/healthz` 同时记录 `release`、`code`、`content`。上传前和激活前均核对两仓 `main`，过时构建自动跳过，部署中不强制中断容器切换。只修改内容仓 README 或 docs 不会触发重建。
+
+在主题仓 Actions 手动运行 Shirone CI 时，可填写 `content_sha`（完整 40 位提交号）回滚到指定内容，留空则读取最新内容。显式回滚允许内容不是最新提交，但主题仍须是当前 main；也可按下述服务器命令回滚到已有发布版本。
 GitHub 上的源码和 Actions 构建结果是日常发布入口，无需在服务器拉源码或安装主题依赖。
 
 `build:release` 同时更新 `artifacts/deploy/`、`artifacts/release.tar.gz` 和归档 SHA-256；本地与 CI 使用同一打包脚本。
-`release.json` 记录当前提交和 `dirty` 标记。本地未提交改动允许生成验证用快照（`dirty: true`），正式发布前先提交并重新构建；CI 拒绝脏工作区和与检出提交不符的版本号。
+`release.json` 记录两仓提交、共同发布版本和 `dirty` 标记。本地未提交改动允许生成验证用快照（`dirty: true`），正式发布前先提交并重新构建；CI 拒绝脏工作区、物化内容与锁定版本不符，以及与代码和内容计算结果不符的发布版本。
 构建和打包均检查开发说明是否进入产物；页面及相册开发规则分别在 `rules/page-routes.md`、`rules/album-media.md`，不得放入 `src/pages/` 或 `public/`。
 仓库使用 `.gitattributes` 固定文本换行为 LF，Biome 检查失败会阻止部署。
 
@@ -58,8 +62,8 @@ curl -fsS https://blog.zhiii.top/healthz
 # 以部署账号或管理员身份回滚到上一成功版本
 sudo -u shirone-deploy /usr/local/bin/shirone-blog-release rollback
 
-# 回滚到仍保留的指定提交
-sudo -u shirone-deploy /usr/local/bin/shirone-blog-release rollback <完整40位提交SHA>
+# 回滚到仍保留的指定发布版本（从 /healthz 或 Actions 摘要取得 release）
+sudo -u shirone-deploy /usr/local/bin/shirone-blog-release rollback <完整40位发布标识>
 ```
 
 版本位于 `/srv/shirone-blog/site/releases/<SHA>`，`current` 指向当前版本，`previous` 指向上一个成功版本。

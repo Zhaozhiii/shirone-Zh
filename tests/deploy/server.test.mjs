@@ -25,7 +25,12 @@ before(async () => {
 		"release.json": "private release metadata",
 	}))
 		await writeFile(join(directory, name), content);
-	server = createBlogServer({ root: join(directory, "dist"), release });
+	server = createBlogServer({
+		root: join(directory, "dist"),
+		release,
+		code: "b".repeat(40),
+		content: "c".repeat(40),
+	});
 	await new Promise((resolve) => server.listen(0, "127.0.0.1", resolve));
 	origin = `http://127.0.0.1:${server.address().port}`;
 });
@@ -55,6 +60,8 @@ test("provides release health, HEAD and restricted methods", async () => {
 	assert.deepEqual(await (await fetch(`${origin}/healthz`)).json(), {
 		status: "ok",
 		release,
+		code: "b".repeat(40),
+		content: "c".repeat(40),
 	});
 	const head = await fetch(`${origin}/`, { method: "HEAD" });
 	assert.equal(head.status, 200);

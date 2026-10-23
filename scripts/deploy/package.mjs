@@ -4,17 +4,27 @@ import { cp, mkdir, readdir, readFile, rm, writeFile } from "node:fs/promises";
 import { join, relative, resolve } from "node:path";
 import { build } from "esbuild";
 import { checkDist } from "./check-dist.mjs";
+import { releaseVersion } from "./release-version.mjs";
 
-const release =
-	process.env.GITHUB_SHA ||
-	execFileSync("git", ["rev-parse", "HEAD"], { encoding: "utf8" }).trim();
-if (!/^[a-f0-9]{40}$/.test(release))
-	throw new Error("Expected a full Git commit SHA");
 const head = execFileSync("git", ["rev-parse", "HEAD"], {
 	encoding: "utf8",
 }).trim();
-if (release !== head)
+if (process.env.GITHUB_SHA && process.env.GITHUB_SHA !== head)
 	throw new Error("Release SHA does not match the checked-out commit");
+let content;
+try {
+	content = JSON.parse(await readFile("content.lock.json", "utf8")).source
+		?.commit;
+} catch (error) {
+	if (error.code !== "ENOENT") throw error;
+}
+if (process.env.CONTENT_SHA && process.env.CONTENT_SHA !== content)
+	throw new Error(
+		"Materialized content does not match the resolved content commit",
+	);
+const release = releaseVersion(head, content);
+if (process.env.RELEASE_SHA && process.env.RELEASE_SHA !== release)
+	throw new Error("Release version does not match code and content commits");
 const dirty = Boolean(
 	execFileSync("git", ["status", "--porcelain", "--untracked-files=normal"], {
 		encoding: "utf8",
@@ -44,7 +54,7 @@ await build({
 });
 await writeFile(
 	join(output, "release.json"),
-	`${JSON.stringify({ release, dirty })}\n`,
+	`${JSON.stringify({ release, code: head, content, dirty })}\n`,
 );
 const checksums = [];
 async function visit(directory) {

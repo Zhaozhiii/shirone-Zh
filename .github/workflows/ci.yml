@@ -6,9 +6,16 @@ on:
   pull_request:
     branches: [main]
   workflow_dispatch:
+    inputs:
+      content_sha:
+        description: Optional full content SHA for a deliberate rollback
+        required: false
+        type: string
+  repository_dispatch:
+    types: [content-updated]
 
 concurrency:
-  group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
+  group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.event_name }}-${{ github.ref }}
   # Never interrupt a production deployment halfway through activation.
   cancel-in-progress: ${{ github.event_name == 'pull_request' }}
 
@@ -17,15 +24,35 @@ permissions:
 
 env:
   CONTENT_REPO_URL: https://github.com/Zhaozhiii/Shirone-Zh-Content.git
-  CONTENT_REPO_REF: main
 
 jobs:
+  prepare:
+    name: Resolve code and content versions
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    outputs:
+      code_sha: ${{ steps.versions.outputs.code_sha }}
+      content_sha: ${{ steps.versions.outputs.content_sha }}
+      release_sha: ${{ steps.versions.outputs.release_sha }}
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
+      - uses: actions/setup-node@cdca7365b2dadb8aad0a33bc7601856ffabcc48e
+        with:
+          node-version: 24
+      - name: Lock both repository versions
+        id: versions
+        env:
+          REQUESTED_CONTENT_SHA: ${{ github.event.client_payload.sha || inputs.content_sha }}
+        run: node scripts/deploy/prepare-ci.mjs
+
   quality:
     name: Code quality
+    needs: prepare
     runs-on: ubuntu-latest
     timeout-minutes: 10
     env:
       CI: true
+      CONTENT_REPO_REF: ${{ needs.prepare.outputs.content_sha }}
 
     steps:
       - name: Checkout
@@ -55,10 +82,12 @@ jobs:
 
   checks:
     name: Diagnostics and tests
+    needs: prepare
     runs-on: ubuntu-latest
     timeout-minutes: 15
     env:
       CI: true
+      CONTENT_REPO_REF: ${{ needs.prepare.outputs.content_sha }}
 
     steps:
       - name: Checkout
@@ -97,6 +126,7 @@ jobs:
 
   build:
     name: Build (Node.js ${{ matrix.node }})
+    needs: prepare
     runs-on: ubuntu-latest
     timeout-minutes: 15
     strategy:
@@ -105,6 +135,9 @@ jobs:
         node: [22, 24]
     env:
       CI: true
+      CONTENT_REPO_REF: ${{ needs.prepare.outputs.content_sha }}
+      CONTENT_SHA: ${{ needs.prepare.outputs.content_sha }}
+      RELEASE_SHA: ${{ needs.prepare.outputs.release_sha }}
 
     steps:
       - name: Checkout
@@ -137,7 +170,7 @@ jobs:
         if: matrix.node == 24 && github.event_name != 'pull_request'
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
         with:
-          name: release-${{ github.sha }}
+          name: release-${{ needs.prepare.outputs.release_sha }}
           path: |
             artifacts/release.tar.gz
             artifacts/release.tar.gz.sha256
@@ -145,11 +178,13 @@ jobs:
           if-no-files-found: error
 
   site:
-    name: Empty blog and wallpaper regressions
+    name: Site and wallpaper regressions
+    needs: prepare
     runs-on: ubuntu-latest
     timeout-minutes: 15
     env:
       CI: true
+      CONTENT_REPO_REF: ${{ needs.prepare.outputs.content_sha }}
     steps:
       - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
       - uses: pnpm/action-setup@a7487c7e89a18df4991f7f222e4898a00d66ddda
@@ -169,7 +204,7 @@ jobs:
 
   deploy:
     name: Deploy blog.zhiii.top
-    needs: [quality, checks, build, site]
+    needs: [prepare, quality, checks, build, site]
     if: github.event_name != 'pull_request' && github.ref == 'refs/heads/main'
     runs-on: ubuntu-latest
     timeout-minutes: 10
@@ -180,15 +215,22 @@ jobs:
       SERVER_HOST: ${{ vars.SERVER_HOST }}
       SERVER_USER: ${{ vars.SERVER_USER }}
       SERVER_KNOWN_HOSTS: ${{ vars.SERVER_KNOWN_HOSTS }}
-      RELEASE_SHA: ${{ github.sha }}
+      RELEASE_SHA: ${{ needs.prepare.outputs.release_sha }}
+      CODE_SHA: ${{ needs.prepare.outputs.code_sha }}
+      CONTENT_SHA: ${{ needs.prepare.outputs.content_sha }}
+      ALLOW_CONTENT_ROLLBACK: ${{ github.event_name == 'workflow_dispatch' && inputs.content_sha != '' }}
     steps:
       - name: Checkout exact release
         uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
 
+      - uses: actions/setup-node@cdca7365b2dadb8aad0a33bc7601856ffabcc48e
+        with:
+          node-version: 24
+
       - name: Download production release
         uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4.3.0
         with:
-          name: release-${{ github.sha }}
+          name: release-${{ needs.prepare.outputs.release_sha }}
           path: release
 
       - name: Verify release archive
@@ -209,13 +251,8 @@ jobs:
       - name: Skip superseded commits
         id: current
         run: |
-          latest="$(git ls-remote origin refs/heads/main | cut -f1)"
-          if [ "$latest" = "$RELEASE_SHA" ]; then
-            echo 'deploy=true' >> "$GITHUB_OUTPUT"
-          else
-            echo 'deploy=false' >> "$GITHUB_OUTPUT"
-            echo 'A newer commit is on main; this release will not be deployed.' >> "$GITHUB_STEP_SUMMARY"
-          fi
+          current="$(node scripts/deploy/check-current.mjs)"
+          echo "deploy=$current" >> "$GITHUB_OUTPUT"
 
       - name: Upload and activate release
         id: activate
@@ -223,9 +260,9 @@ jobs:
         run: |
           scp -o BatchMode=yes -o StrictHostKeyChecking=yes release/release.tar.gz "$SERVER_USER@$SERVER_HOST:/srv/shirone-blog/site/incoming/$RELEASE_SHA.tar.gz"
           scp -o BatchMode=yes -o StrictHostKeyChecking=yes release/release.tar.gz.sha256 "$SERVER_USER@$SERVER_HOST:/srv/shirone-blog/site/incoming/$RELEASE_SHA.tar.gz.sha256"
-          latest="$(git ls-remote origin refs/heads/main | cut -f1)"
-          if [ "$latest" != "$RELEASE_SHA" ]; then
-            echo 'A newer commit arrived during upload; activation skipped.' >> "$GITHUB_STEP_SUMMARY"
+          current="$(node scripts/deploy/check-current.mjs)"
+          if [ "$current" != true ]; then
+            echo 'Newer code or content arrived during upload; activation skipped.' >> "$GITHUB_STEP_SUMMARY"
             exit 0
           fi
           ssh -o BatchMode=yes -o StrictHostKeyChecking=yes "$SERVER_USER@$SERVER_HOST" "/usr/local/bin/shirone-blog-release activate $RELEASE_SHA"
@@ -234,10 +271,10 @@ jobs:
       - name: Verify public release and existing sites
         if: steps.activate.outputs.deployed == 'true'
         run: |
-          curl --fail --silent --show-error https://blog.zhiii.top/healthz | python3 -c 'import json,os,sys; assert json.load(sys.stdin)["release"] == os.environ["RELEASE_SHA"]'
+          curl --fail --silent --show-error https://blog.zhiii.top/healthz | python3 -c 'import json,os,sys; d=json.load(sys.stdin); assert all(d[k] == os.environ[v] for k,v in [("release","RELEASE_SHA"),("code","CODE_SHA"),("content","CONTENT_SHA")])'
           curl --fail --silent --show-error --output /dev/null https://blog.zhiii.top/
           curl --fail --silent --show-error --output /dev/null https://zhiii.top/
-          echo "Published $RELEASE_SHA to https://blog.zhiii.top" >> "$GITHUB_STEP_SUMMARY"
+          echo "Published $RELEASE_SHA (code $CODE_SHA, content $CONTENT_SHA) to https://blog.zhiii.top" >> "$GITHUB_STEP_SUMMARY"
 
       - name: Remove temporary SSH key
         if: always()
