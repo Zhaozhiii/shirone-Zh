@@ -26,6 +26,9 @@ function write(path, text) {
 	mkdirSync(dirname(path), { recursive: true });
 	writeFileSync(path, text);
 }
+function seed(path, text) {
+	if (!existsSync(path)) write(path, text);
+}
 function literal(node) {
 	if (ts.isArrayLiteralExpression(node)) return node.elements.map(literal);
 	if (ts.isObjectLiteralExpression(node))
@@ -185,7 +188,7 @@ for (const [domain, def] of Object.entries(domains)) {
 		"file.name",
 		...Object.keys(fields).filter((k) => k !== "password"),
 	];
-	write(
+	seed(
 		join(root, "管理面板", `${def.label}.base`),
 		stringify({
 			filters: {
@@ -217,7 +220,7 @@ for (const [domain, def] of Object.entries(domains)) {
 		}),
 	);
 }
-write(
+seed(
 	join(root, "首页.md"),
 	"# 博客管理\n\n点击左侧 **Shirone CMS** 图标进入管理后台。\n\n- 用表格和卡片浏览、筛选与排序；双击正文进入 Obsidian 编辑器。\n- 在 CMS 表单中修改属性、选择图片、管理网站设置。\n- 新条目默认草稿；点“发布”后自动同步并构建网站。\n- 已发布内容修改后，停止编辑 60 秒自动同步；也可点“立即同步”。\n- “预览”包含草稿，只在本机开放；支持指定预览时间。\n- 发布时间使用北京时间。到点触发 Actions，部署成功后生效。\n- 密码只在表单显示；请勿在标题、正文或公开描述中填写密码。\n- 音乐歌单自动同步继续由原工作流管理。\n- 网络失败会保留待同步状态；冲突暂停同步，先保留和处理双方修改。\n- 删除进入回收站；历史版本可从 Git 恢复。\n\n## 内容表格\n\n" +
 		Object.values(domains)
@@ -225,7 +228,8 @@ write(
 			.join("\n") +
 		"\n\n请只编辑本内容库，不编辑主题仓的生成副本。\n",
 );
-refreshState(root);
+if (!hasManifest || !existsSync(join(root, "cms/publication-state.json")))
+	refreshState(root);
 console.log(
 	JSON.stringify({
 		migrated: !hasManifest,
