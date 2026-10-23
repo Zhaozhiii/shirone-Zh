@@ -135,7 +135,21 @@ export function readRecords(root) {
     if (["skills","timeline","anime"].includes(domain)) data.description = note.body.trim() || data.description || "";
     if (domain === "media") data.description ??= note.body.trim();
     if (domain === "media") { data.creator ??= data.director || data.author; if (data.year !== undefined) data.year=String(data.year); }
-    if (domain === "albums") data.description = note.body.trim() || data.description || "";
+    if (domain === "albums") {
+      const images=[],ranges=[];
+      const visit=node=>{
+        if(["code","inlineCode"].includes(node.type))ranges.push([node.position.start.offset,node.position.end.offset]);
+        if(node.type==="image")images.push({src:node.url,alt:node.alt || "",offset:node.position.start.offset});
+        for(const child of node.children || [])visit(child);
+      };
+      visit(unified().use(remarkParse).parse(note.body));
+      for(const m of note.body.matchAll(/!\[\[([^\]]+)\]\]/g)) {
+        if(ranges.some(([a,b])=>m.index>=a && m.index<b))continue;
+        const [src,alt]=m[1].split("|");images.push({src,alt:alt && !/^\d+(?:x\d+)?$/.test(alt)?alt:"",offset:m.index});
+      }
+      if(images.length)data.photos=images.sort((a,b)=>a.offset-b.offset).map(({offset,...image})=>({...data.photos?.find?.(old=>old.src===image.src),...image}));
+      data.description=note.body.replace(/!\[\[[^\]]+\]\]/g,"").replace(/!\[[^\]]*\]\([^)]+\)/g,"").trim() || data.description || "";
+    }
     if (data.passwordSecret && data.publish === true) {
       if (!/^[A-Z][A-Z0-9_]+$/.test(data.passwordSecret)) throw new Error("Invalid password secret reference");
       let passwords;

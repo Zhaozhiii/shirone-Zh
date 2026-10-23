@@ -175,3 +175,11 @@ test("a public album defaults to its first photo when no cover property is suppl
   assert.match(info.cover,/^\/images\/vault\/[a-f0-9]+\.png$/);
   assert.equal(info.cover,info.photos[0].src);
 });
+
+test("album photos can be written as native Markdown with no YAML photo list",t=>{
+  const {root,write,note,build}=fixture(t);
+  write("附件/a.png","PHOTO_A");write("附件/b.png","PHOTO_B");
+  note("album.md",{type:"album",publish:true,key:"native"},"相册介绍\n\n![[a.png]]\n\n![第二张](附件/b.png)\n\n`![[private.png]]`");
+  build();const info=JSON.parse(readFileSync(join(root,"public/images/albums/native/info.json"),"utf8"));
+  assert.equal(info.photos.length,2);assert.ok(info.cover);assert.equal(info.photos[1].alt,"第二张");
+});

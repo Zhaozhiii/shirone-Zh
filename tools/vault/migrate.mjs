@@ -60,6 +60,11 @@ export function migrate(source, vault, theme) {
       data.slug ??= data.alias || (domain === "posts" ? originalId.replace(/\/index$/,"") : data.key || data.cmsId || originalId);
       delete data.cmsId; delete data.draft; delete data.visible;
       let body = note.body;
+      if(domain === "albums" && !body.trim() && data.photos?.length) {
+        body=String(data.description || "")+"\n\n"+data.photos.map(photo=>/^https?:/.test(photo.src)?`![${photo.alt || ""}](${photo.src})`:`![[${photo.src}${photo.alt?"|"+photo.alt:""}]]`).join("\n\n");
+        delete data.description;
+        if(data.photos.every(photo=>Object.keys(photo).every(k=>["src","alt"].includes(k))))delete data.photos;
+      }
       // Resolve old relative image paths before moving a note to its natural folder.
       body = body.replace(/(!\[[^\]]*\]\()([^\s)]+)(\))/g, (match,a,url,z) => {
         const target=assets.get(posix.normalize(posix.join(posix.dirname(oldPath),url))) || assets.get(url);
