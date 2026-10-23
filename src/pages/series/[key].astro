@@ -1,13 +1,13 @@
 ---
 import Card from "@components/atoms/display/Card.svelte";
 import MainGridLayout from "@layouts/MainGridLayout.astro";
-import { cmsSeries } from "@utils/cms";
 import { getSortedPosts } from "@utils/content-utils";
 import { isPageAvailable } from "@utils/page-availability";
 import { getPostUrl } from "@utils/url-utils";
+import { vaultSeries } from "@utils/vault-content";
 export function getStaticPaths() {
 	return isPageAvailable("series")
-		? cmsSeries.map((series) => ({
+		? vaultSeries.map((series) => ({
 				params: { key: series.key },
 				props: { series },
 			}))

@@ -44,7 +44,7 @@
     "anime:sync": "node scripts/anime/sync.mjs",
     "fonts:check": "node scripts/fonts/check-fonts.mjs",
     "fonts:subset": "node scripts/fonts/subset-fonts.mjs",
-    "build": "node scripts/content/sync.mjs --production && node scripts/icons/generate-local-icons.mjs && node scripts/images/generate-moment-thumbnails.mjs && node scripts/fonts/subset-fonts.mjs && astro build && node tools/cms/finalize-dist.mjs && npx pagefind --site dist && node scripts/fonts/check-fonts.mjs && node scripts/deploy/check-dist.mjs",
+    "build": "node scripts/content/sync.mjs --production && node scripts/icons/generate-local-icons.mjs && node scripts/images/generate-moment-thumbnails.mjs && node scripts/fonts/subset-fonts.mjs && astro build && node tools/vault/finalize-dist.mjs && npx pagefind --site dist && node scripts/fonts/check-fonts.mjs && node scripts/deploy/check-dist.mjs",
     "preview": "astro preview",
     "lighthouse:collect": "lhci collect --config=lighthouserc.cjs",
     "lighthouse:assert": "lhci assert --config=lighthouserc.cjs",
@@ -61,9 +61,7 @@
     "perf:measure": "node scripts/perf/measure.mjs",
     "build:release": "node scripts/deploy/build-release.mjs",
     "test:server": "node --test tests/deploy/server.test.mjs",
-    "cms:state": "node tools/cms/cli.mjs state",
-    "cms:validate": "node tools/cms/cli.mjs validate",
-    "cms:build": "node tools/cms/build.mjs"
+    "vault:verify": "node tools/vault/verify-dist.mjs ../Obsidian-Vault dist"
   },
   "dependencies": {
     "@astrojs/check": "^0.9.10",

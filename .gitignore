@@ -105,3 +105,8 @@ src/generated/*.tmp
 /artifacts/cms-fixture/
 __pycache__/
 *.pyc
+
+/.vault-cache/
+/.vault-cache-files.json
+/src/user/vault-data.json
+/artifacts/vault-fixture/

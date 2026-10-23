@@ -7,6 +7,8 @@ on:
     branches:
       - main
   workflow_dispatch: {}
+  repository_dispatch:
+    types: [music-updated]
 concurrency:
   group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.event_name }}-${{ github.ref }}
   cancel-in-progress: ${{ github.event_name == 'pull_request' }}
@@ -19,7 +21,7 @@ jobs:
     timeout-minutes: 25
     env:
       CI: true
-      CONTENT_DIR: artifacts/cms-fixture
+      CONTENT_DIR: artifacts/vault-fixture
     steps:
       - name: Checkout
         uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
@@ -37,7 +39,7 @@ jobs:
         run: pnpm install --frozen-lockfile
       - name: Materialize blog content
         run: |-
-          node tools/cms/fixture.mjs
+          node tools/vault/fixture.mjs
           node scripts/content/sync.mjs
       - name: Run Biome
         run: pnpm exec biome ci ./src --reporter=github
@@ -51,14 +53,6 @@ jobs:
         run: node --test --test-concurrency=1 "tests/**/*.test.mjs"
       - name: Build production site
         run: pnpm build
-      - name: Build Obsidian CMS plugin
-        run: node tools/cms/build.mjs artifacts/cms
-      - name: Upload CMS plugin
-        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
-        with:
-          name: shirone-cms
-          path: artifacts/cms/
-          retention-days: 30
       - name: Notify private content publication
         if: github.event_name != 'pull_request' && github.ref == 'refs/heads/main'
         env:
@@ -70,5 +64,5 @@ jobs:
           chmod 600 "$RUNNER_TEMP/cms-content-write"
           printf '%s\n' "$CMS_GITHUB_KNOWN_HOSTS" > "$RUNNER_TEMP/cms-github-known-hosts"
           export GIT_SSH_COMMAND="ssh -i $RUNNER_TEMP/cms-content-write -o IdentitiesOnly=yes -o UserKnownHostsFile=$RUNNER_TEMP/cms-github-known-hosts -o StrictHostKeyChecking=yes"
-          node tools/cms/notify-content.mjs
+          node tools/vault/notify-content.mjs
           rm -f "$RUNNER_TEMP/cms-content-write"

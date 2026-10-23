@@ -16,7 +16,7 @@ if (!isPageAvailable("about")) {
 const aboutPost = await getEntry("spec", "about");
 
 if (!aboutPost) {
-	throw new Error("About page content not found");
+	return Astro.redirect("/404/");
 }
 
 const { Content, remarkPluginFrontmatter } = await render(aboutPost);

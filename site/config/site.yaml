@@ -1,0 +1,43 @@
+site: https://blog.zhiii.top/
+base: /
+title: 赵跖
+subtitle: 你知道我们在谈论什么。
+lang: zh_CN
+timeZone: Asia/Shanghai
+themeColor:
+  hue: 195
+  style: monochrome
+  spec: "2025"
+texture:
+  defaultPreset: sakura
+pages:
+  guestbook: false
+  anime: false
+banner:
+  dim:
+    enable: true
+    opacity: 0.42
+  src:
+    desktop:
+      - /images/branding/ebf17db4241633879623f7dfacfff7788364ab957329a84306c46d7f49d6cc9b.png
+    mobile:
+      - /images/branding/ebf17db4241633879623f7dfacfff7788364ab957329a84306c46d7f49d6cc9b.png
+  homeText:
+    title: Zhaozhiiiのblog
+    subtitle:
+      - 涅格瓦的猫头鹰总在黄昏时起飞。
+    typewriter:
+      enable: true
+      pauseTime: 10000
+      loop: true
+    links:
+      - text: Bilibili
+        ariaLabel: Bilibili
+        icon: fa6-brands:bilibili
+        url: https://space.bilibili.com/109369918
+      - ariaLabel: GitHub
+        icon: fa6-brands:github
+        url: https://github.com/Zhaozhiii
+      - ariaLabel: 网易云
+        icon: simple-icons:neteasecloudmusic
+        url: https://music.163.com/#/user/home?id=1288451808

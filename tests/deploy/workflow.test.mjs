@@ -21,7 +21,7 @@ test("public theme CI uses only fixtures; private publication pins both versions
 	assert.equal(publicWorkflow.jobs.deploy, undefined);
 	assert.equal(
 		publicWorkflow.jobs.build.env.CONTENT_DIR,
-		"artifacts/cms-fixture",
+		"artifacts/vault-fixture",
 	);
 	const notification = publicWorkflow.jobs.build.steps.find(
 		(s) => s.name === "Notify private content publication",
@@ -29,32 +29,29 @@ test("public theme CI uses only fixtures; private publication pins both versions
 	assert.match(notification.if, /pull_request/);
 	assert.match(notification.if, /refs\/heads\/main/);
 	const workflow = parse(
-		readFileSync(join(root, "tools/cms/publish.yml"), "utf8"),
+		readFileSync(join(root, ".github/workflows/publish-vault.yml"), "utf8"),
 	);
-	assert.deepEqual(workflow.on.repository_dispatch.types, ["content-updated"]);
-	assert.equal(workflow.jobs.deploy.needs, "build");
-	const content = workflow.jobs.build.steps.find(
-		(s) => s.name === "Checkout exact content",
+	assert.ok(workflow.on.workflow_call);
+	assert.match(workflow.jobs.publish.if, /Zhaozhiii\/Obsidian-Vault/);
+	assert.equal(workflow.jobs.publish.env.CONTENT_REPO_URL, "https://github.com/Zhaozhiii/Obsidian-Vault.git");
+	const content = workflow.jobs.publish.steps.find(
+		(s) => s.name === "Checkout exact Vault revision",
 	);
 	assert.match(content.with.ref, /github\.sha/);
-	const theme = workflow.jobs.build.steps.find(
-		(s) => s.name === "Checkout exact theme",
+	const theme = workflow.jobs.publish.steps.find(
+		(s) => s.name === "Checkout exact source revision",
 	);
 	assert.equal(theme.with.ref, "${{ steps.theme.outputs.sha }}");
-	const build = workflow.jobs.build.steps.find(
-		(s) => s.name === "Build and package production release",
+	const build = workflow.jobs.publish.steps.find(
+		(s) => s.name === "Build and verify release",
 	);
 	assert.equal(
 		build.env.CONTENT_SHA,
 		"${{ steps.versions.outputs.content_sha }}",
 	);
 	assert.equal(build.env.CODE_SHA, "${{ steps.versions.outputs.code_sha }}");
-	assert.equal(
-		workflow.jobs.deploy.env.CONTENT_SHA,
-		"${{ needs.build.outputs.content_sha }}",
-	);
-	const activation = workflow.jobs.deploy.steps.find(
-		(s) => s.name === "Upload and activate current release",
+	const activation = workflow.jobs.publish.steps.find(
+		(s) => s.name === "Activate only the current code and content",
 	);
 	assert.equal(
 		activation.run.split("node scripts/deploy/check-current.mjs").length - 1,

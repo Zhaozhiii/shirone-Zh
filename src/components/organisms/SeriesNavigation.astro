@@ -1,23 +1,23 @@
 ---
 import I18nKey from "@i18n/i18nKey";
 import { i18n } from "@i18n/translation";
-import { cmsSeries } from "@utils/cms";
 import { getSortedPosts } from "@utils/content-utils";
 import { getPostUrl, url } from "@utils/url-utils";
+import { vaultSeries } from "@utils/vault-content";
 
 interface Props {
 	series?: string;
 	current: string;
 }
 const { series, current } = Astro.props;
-const group = cmsSeries.find((s) => s.key === series);
+const group = vaultSeries.find((s) => s.key === series);
 const posts = group
 	? (await getSortedPosts())
 			.filter((p) => p.data.series === series)
 			.sort((a, b) => (a.data.seriesOrder ?? 0) - (b.data.seriesOrder ?? 0))
 	: [];
 ---
-{group && posts.length > 0 && <nav class="series-navigation" aria-label={i18n(I18nKey.cmsSeries)}>
+{group && posts.length > 0 && <nav class="series-navigation" aria-label={i18n(I18nKey.vaultSeries)}>
   <h2><a href={url(`/series/${encodeURIComponent(group.key)}/`)}>{group.title}</a></h2>
   <ol>{posts.map(p => <li><a href={getPostUrl(p)} aria-current={p.id === current ? "page" : undefined}>{p.data.title}</a></li>)}</ol>
 </nav>}

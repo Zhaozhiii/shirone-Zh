@@ -29,7 +29,7 @@ import {
 import { dirname, join, resolve } from "node:path";
 import { CONFIG_DIRECTORY } from "./config-domains.mjs";
 import { syncUserConfig } from "./config-overlay.mjs";
-import { compileCms } from "../../tools/cms/core.mjs";
+import { syncVault } from "../../tools/vault/sync.mjs";
 import {
 	canonicalGitUrl,
 	LOCK_FILE,
@@ -444,6 +444,12 @@ function runSync() {
 
 	const previousConfigFiles = readPreviousConfigFiles();
 	const { directory: sourceRoot, commit } = resolveSourceRoot(resolved);
+	const manifest = existsSync(join(ROOT, "shirone.content.json")) ? JSON.parse(readFileSync(join(ROOT,"shirone.content.json"),"utf8")) : {};
+	if (manifest.format === "obsidian-vault" || process.env.CONTENT_FORMAT === "obsidian-vault") {
+		const lock = syncVault({ root:ROOT, sourceRoot, commit, dryRun:options.dryRun });
+		log("Published Markdown whitelist compiled; original Vault unchanged.");
+		return lock;
+	}
 	warnUnmountedDirectories(sourceRoot, resolved.mounts);
 
 	const mountStats = {};
@@ -463,15 +469,9 @@ function runSync() {
 	}
 
 	// 配置覆盖必须在挂载之后：类型校验会读到内容仓刚物化过来的 src/data/*.ts。
-	const cms = compileCms({
-		sourceRoot,
-		root: ROOT,
-		production: options.production,
-		dryRun: options.dryRun,
-	});
 	const config = syncUserConfig({
 		root: ROOT,
-		sourceRoot: cms && !options.dryRun ? cms.configRoot : sourceRoot,
+		sourceRoot,
 		dryRun: options.dryRun,
 		warn,
 		previousConfigFiles,
@@ -542,12 +542,7 @@ function runWatch() {
 	watch(sourceRoot, { recursive: true }, (_event, filename) => {
 		// Obsidian workspace changes and preview logs are not content changes.
 		// In particular, logging a sync must not schedule another sync.
-		if (
-			filename &&
-			!/^(?:(?:content|cms|config|data|assets|public)(?:\/|$)|shirone\.content\.json$)/.test(
-				String(filename).replaceAll("\\", "/"),
-			)
-		)
+		if (filename && String(filename).replaceAll("\\","/").split("/").some(p => p.startsWith(".")))
 			return;
 		if (timer) clearTimeout(timer);
 		timer = setTimeout(() => {

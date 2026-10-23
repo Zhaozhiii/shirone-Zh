@@ -1,18 +1,18 @@
 ---
 import I18nKey from "@i18n/i18nKey";
 import { i18n } from "@i18n/translation";
-import { cmsMedia } from "@utils/cms";
+import { vaultMedia } from "@utils/vault-content";
 import { Icon } from "astro-icon/components";
 ---
 
 <section class="media-section onload-animation">
     <h1 id="media-title"><Icon name="material-symbols:menu-book-rounded" aria-hidden="true" />{i18n(I18nKey.media)}</h1>
     <p>{i18n(I18nKey.mediaDescription)}</p>
-    {cmsMedia.length === 0 ? <div class="media-section__empty">{i18n(I18nKey.mediaEmpty)}</div> : <div class="media-section__grid">
-      {cmsMedia.map(item => <article class="media-item" data-kind={item.kind}>
+    {vaultMedia.length === 0 ? <div class="media-section__empty">{i18n(I18nKey.mediaEmpty)}</div> : <div class="media-section__grid">
+      {vaultMedia.map(item => <article class="media-item" data-kind={item.kind}>
         {item.cover && <img src={item.cover} alt={item.title} loading="lazy" width="240" height="320" />}
         <div><span class="media-item__type">{i18n(item.kind === "movie" ? I18nKey.cmsMovie : I18nKey.cmsBook)}</span>
-        <h2>{item.url ? <a href={item.url} target="_blank" rel="noopener noreferrer">{item.title}</a> : item.title}</h2>
+        <h2><a href={`/media/${encodeURIComponent(item.key)}/`}>{item.title}</a></h2>
         {item.creator && <p>{item.creator}</p>}
         {item.status && <p>{i18n(item.status === "completed" ? I18nKey.cmsCompleted : item.status === "in-progress" ? I18nKey.cmsInProgress : I18nKey.cmsPlanned)}</p>}
         {item.rating !== undefined && <p>{i18n(I18nKey.cmsRating)} {item.rating} / 10</p>}

@@ -1,0 +1,81 @@
+/** One-time migration from a legacy CMS working copy; never imports its Git history. */
+import { copyFileSync, existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
+import { dirname, join, relative, resolve } from "node:path";
+import { parse, stringify } from "yaml";
+import { files, noteText, readNote } from "./core.mjs";
+import { domains } from "./model.mjs";
+
+export function migrate(source, vault, theme) {
+  source = resolve(source); vault = resolve(vault); theme = resolve(theme);
+  if (files(vault).length) throw new Error("Migration requires an empty Vault; existing notes will never be overwritten");
+  const write = (path, value) => { mkdirSync(dirname(path), { recursive:true }); writeFileSync(path,value); };
+  const assets = new Map();
+  for (const folder of ["assets", "public", "cms/media", "content"]) {
+    for (const file of files(join(source,folder)).filter(p => !/\.(md|mdx|json|ts|txt)$/.test(p) && !p.endsWith(".gitkeep"))) {
+      const old = relative(source,file).replaceAll("\\","/");
+      const dest = "附件/"+old;
+      assets.set(old,dest);
+      if (old.startsWith("public/")) assets.set("/"+old.slice(7),dest);
+      mkdirSync(dirname(join(vault,dest)),{recursive:true});
+      copyFileSync(file,join(vault,dest));
+    }
+  }
+  const transform = value => {
+    if (typeof value === "string") return assets.get(value) || assets.get(value.replace(/^\//,"")) || value;
+    if (Array.isArray(value)) return value.map(transform);
+    if (value && typeof value === "object") return Object.fromEntries(Object.entries(value).map(([k,v])=>[k,transform(v)]));
+    return value;
+  };
+  const mapping = {
+    posts:["博客","article"],moments:["动态","moment"],media:["影视","media"],devices:["设备","device"],
+    projects:["项目","project"],friends:["友链","friend"],skills:["个人笔记/技能","skill"],timeline:["个人笔记/经历","timeline"],
+    categories:["分类","category"],tags:["标签","tag"],series:["系列","series"],announcements:["公告","announcement"],
+    albums:["相册","album"],anime:["影视/番剧","anime"],compass:["网址","link"],
+    aboutTechGroups:["个人笔记/技术","aboutTechGroup"],aboutMilestones:["个人笔记/里程碑","aboutMilestone"],aboutSocialLinks:["个人笔记/社交","aboutSocialLink"],
+  };
+  const counts = {};
+  for (const [domain,schema] of Object.entries(domains)) {
+    for (const file of files(join(source,schema.folder || `cms/${domain}`)).filter(p=>p.endsWith(".md"))) {
+      const note = readNote(readFileSync(file,"utf8"));
+      const [folder,type] = mapping[domain];
+      const oldPath = relative(source,file).replaceAll("\\","/");
+      const originalId = oldPath.slice((schema.folder || `cms/${domain}`).length+1).replace(/\.md$/,"");
+      const data = transform(note.data);
+      data.type = type;
+      // Preserve the author's explicit draft/visibility choices, including future windows.
+      data.publish = data.draft !== true && data.visible !== false;
+      data.slug ??= data.alias || (domain === "posts" ? originalId.replace(/\/index$/,"") : data.key || data.cmsId || originalId);
+      delete data.cmsId; delete data.draft; delete data.visible;
+      let body = note.body;
+      for (const [from,to] of [...assets].sort((a,b)=>b[0].length-a[0].length)) body = body.split(from).join(to);
+      // Existing album/structured data is kept verbatim in Properties; prose belongs in the body.
+      if (!body.trim() && ["devices","projects","friends","media","announcements"].includes(domain)) {
+        const field = {devices:"description",projects:"summary",friends:"desc",media:"description",announcements:"content"}[domain];
+        body = String(data[field] || "");
+      }
+      const name = String(data.title || data.name || originalId).replace(/[<>:"/\\|?*\x00-\x1f]/g,"-").replace(/[. ]+$/,"");
+      let target = join(vault,folder,name+".md");
+      if (existsSync(target)) target=join(vault,folder,name+"-"+originalId.replaceAll("/","-")+".md");
+      write(target,noteText(data,body)); counts[domain]=(counts[domain]||0)+1;
+    }
+  }
+  for (const file of files(join(source,"content/spec")).filter(p=>p.endsWith(".md"))) {
+    const key = relative(join(source,"content/spec"),file).replace(/\.md$/,"");
+    const note = readNote(readFileSync(file,"utf8"));
+    write(join(vault,"个人笔记/关于",key+".md"), noteText({...transform(note.data),type:"page",key,publish:true},note.body));
+    counts.pages=(counts.pages||0)+1;
+  }
+  for (const file of files(join(source,"config")).filter(p=>/\.(ya?ml|html)$/.test(p))) {
+    const dest = join(theme,"site/config",relative(join(source,"config"),file));
+    write(dest,/\.ya?ml$/.test(file)?stringify(transform(parse(readFileSync(file,"utf8")))):readFileSync(file));
+  }
+  // The music generator and snapshots are engineering data, maintained only in the code repository.
+  const music=join(source,"data/music.ts");
+  if(existsSync(music)) write(join(theme,"site/data/music.ts"),readFileSync(music));
+  for(const folder of [".github/scripts"])
+    for(const file of files(join(source,folder))) write(join(theme,relative(source,file)),readFileSync(file));
+  if(existsSync(join(source,".github/music-playlist-state.json"))) write(join(theme,".github/music-playlist-state.json"),readFileSync(join(source,".github/music-playlist-state.json")));
+  console.log(JSON.stringify({migrated:counts,attachments:new Set(assets.values()).size}));
+  return counts;
+}
+if (process.argv[2]) migrate(...process.argv.slice(2,5));

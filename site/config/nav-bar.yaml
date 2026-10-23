@@ -1,0 +1,23 @@
+links:
+  - preset: Home
+  - preset: Archive
+  - preset: Moments
+  - name: $t:media
+    url: /media/
+    icon: material-symbols:menu-book-rounded
+    pageKey: media
+  - preset: Compass
+    name: 网址导航
+  - preset: Projects
+  - name: $t:more
+    icon: material-symbols:apps-rounded
+    children:
+      - preset: Friends
+      - preset: Albums
+      - preset: Devices
+      - preset: Timeline
+      - preset: Skills
+      - preset: Sponsor
+      - preset: About
+      - preset: GitHub
+        url: https://github.com/Zhaozhiii

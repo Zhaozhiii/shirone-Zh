@@ -1,0 +1,8 @@
+site:
+  name: Zhaozhiiiのblog
+  email: a2673601643@163.com
+contacts:
+  - label: 邮箱
+    value: a2673601643@163.com
+    icon: material-symbols:mail-outline-rounded
+    link: mailto:a2673601643@163.com

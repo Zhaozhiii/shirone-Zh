@@ -1,0 +1,22 @@
+avatar: /images/branding/c7e10d1d7c8b6a99601fe762da21ed728a32447b6e638d6297f1b86c1858e2a5.jpg
+name: 赵跖
+bio: 你知道我们在谈论什么。
+links:
+  - name: QQ · 3217413908
+    icon: fa6-brands:qq
+    url: https://wpa.qq.com/msgrd?v=3&uin=3217413908&site=qq&menu=yes
+  - name: BiliBili
+    icon: fa6-brands:bilibili
+    url: https://space.bilibili.com/109369918
+  - name: 知乎
+    icon: fa6-brands:zhihu
+    url: https://www.zhihu.com/people/bi-li-hai-ling-dun-93
+  - name: 网易云
+    icon: simple-icons:neteasecloudmusic
+    url: https://music.163.com/#/user/home?id=1288451808
+  - name: Email
+    icon: material-symbols:mail-outline-rounded
+    url: mailto:a2673601643@163.com
+  - name: RSS 订阅
+    icon: material-symbols:rss-feed-rounded
+    url: /rss.xml

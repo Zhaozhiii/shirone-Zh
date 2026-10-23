@@ -24,7 +24,7 @@ import { isPageAvailable } from "../utils/page-availability.ts";
  */
 export const LinkPresets: Record<string, NavBarLink> = {
 	Series: {
-		name: i18n(I18nKey.cmsSeries),
+		name: i18n(I18nKey.vaultSeries),
 		url: "/series/",
 		icon: "material-symbols:collections-bookmark-outline-rounded",
 		pageKey: "series",

@@ -6,9 +6,9 @@ import PostMeta from "@components/atoms/blog/PostMeta.astro";
  */
 import I18nKey from "@i18n/i18nKey";
 import { i18n } from "@i18n/translation";
-import { categoryName, tagName } from "@utils/cms";
 import { formatDateToYYYYMMDD } from "@utils/date-utils";
 import { getCategoryUrl, getTagUrl } from "@utils/url-utils";
+import { categoryName, tagName } from "@utils/vault-content";
 
 interface Props {
 	class?: string;

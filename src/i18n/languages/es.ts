@@ -404,7 +404,7 @@ export const es: Translation = {
 		"Añade esta URL a tu lector RSS/Atom favorito (como NetNewsWire, Feedly, Inoreader o Follow) para recibir actualizaciones.",
 	[Key.feedOpenXml]: "Ver XML original",
 	[Key.feedRecentPosts]: "Artículos recientes del canal",
-	[Key.cmsSeries]: "Series",
+	[Key.vaultSeries]: "Series",
 	[Key.cmsMovie]: "Película",
 	[Key.cmsBook]: "Libro",
 	[Key.cmsPlanned]: "Pendiente",

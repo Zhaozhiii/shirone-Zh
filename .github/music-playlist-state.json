@@ -1,0 +1,33 @@
+{
+  "schemaVersion": 1,
+  "playlistId": "18515546272",
+  "sourceHash": "ada73da4eaa63d05d29e4cc35db392c6bef14eae78f8eadc1c02711ba749d4af",
+  "sourceCount": 12,
+  "playableCount": 8,
+  "excluded": [
+    {
+      "id": "3382154261",
+      "title": "What Did I Miss?",
+      "reason": "trial-30s",
+      "duration": 30.04
+    },
+    {
+      "id": "2022405541",
+      "title": "Imagine",
+      "reason": "trial-30s",
+      "duration": 30.02
+    },
+    {
+      "id": "3353142740",
+      "title": "Overtime",
+      "reason": "trial-30s",
+      "duration": 30.04
+    },
+    {
+      "id": "526929981",
+      "title": "All The Stars",
+      "reason": "trial-30s",
+      "duration": 30.04
+    }
+  ]
+}

@@ -7,7 +7,7 @@ const latest = async (remote) => {
 		process.env.CONTENT_READ_TOKEN
 	) {
 		const response = await fetch(
-			"https://api.github.com/repos/Zhaozhiii/Shirone-Zh-CMS/git/ref/heads/main",
+			"https://api.github.com/repos/Zhaozhiii/Obsidian-Vault/git/ref/heads/main",
 			{
 				headers: {
 					Authorization: `Bearer ${process.env.CONTENT_READ_TOKEN}`,

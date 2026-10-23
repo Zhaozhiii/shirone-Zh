@@ -10,7 +10,6 @@ import path from "node:path";
 import PostCard from "@components/atoms/blog/PostCard.astro";
 import I18nKey from "@i18n/i18nKey";
 import { i18n } from "@i18n/translation";
-import { categoryName, tagName } from "@utils/cms";
 import { formatDateToYYYYMMDD } from "@utils/date-utils";
 import { isEncryptedPost } from "@utils/post-encryption";
 import { getProjectImageLoader } from "@utils/project-images";
@@ -21,6 +20,7 @@ import {
 	getDir,
 	getTagUrl,
 } from "@utils/url-utils";
+import { categoryName, tagName } from "@utils/vault-content";
 import { randomCoverConfig, resolveRandomCoverOptions } from "@/config";
 
 interface Props {

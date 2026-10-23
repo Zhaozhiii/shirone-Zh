@@ -1,0 +1,29 @@
+categories:
+  - key: desk
+    label: 电脑
+    icon: material-symbols:desktop-windows-outline-rounded
+    description: 日常工作和游戏使用的电脑
+  - key: mobile
+    label: 手机
+    icon: material-symbols:phone-iphone
+    description: 日常随身使用的手机
+  - key: peripheral
+    label: 键盘
+    icon: material-symbols:keyboard-outline-rounded
+    description: 日常打字和游戏使用的键盘
+  - key: audio
+    label: 耳机
+    icon: material-symbols:headphones-rounded
+    description: 日常聆听使用的开放式与入耳式耳机
+  - key: tablet
+    label: 平板
+    icon: material-symbols:tablet-mac-rounded
+    description: 阅读、观影和记笔记使用的平板
+  - key: audio-interface
+    label: 声卡
+    icon: material-symbols:graphic-eq-rounded
+    description: 连接麦克风和录制声音使用的音频接口
+  - key: microphone
+    label: 麦克风
+    icon: material-symbols:mic-rounded
+    description: 人声和日常录音使用的麦克风

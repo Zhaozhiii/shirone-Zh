@@ -2,19 +2,19 @@ import { type CollectionEntry, getCollection } from "astro:content";
 import I18nKey from "@i18n/i18nKey";
 import { i18n } from "@i18n/translation";
 import {
-	categoryAncestors,
-	categoryName,
-	cmsCategories,
-	cmsTags,
-	tagName,
-} from "@utils/cms";
-import {
 	comparePublicationEntries,
 	validatePublicationMetadata,
 } from "@utils/content-date";
 import { siteMarkdownProcessor } from "@utils/markdown-processor";
 import { initPostIdMap } from "@utils/permalink-utils";
 import { getCategoryUrl, getPostUrl } from "@utils/url-utils";
+import {
+	categoryAncestors,
+	categoryName,
+	tagName,
+	vaultCategories,
+	vaultTags,
+} from "@utils/vault-content";
 
 // // Retrieve posts and sort them by publication date
 async function getRawSortedPosts(): Promise<CollectionEntry<"posts">[]> {
@@ -85,8 +85,8 @@ export async function getTagList(): Promise<Tag[]> {
 
 	// sort tags
 	const keys: string[] = Object.keys(countMap).sort((a, b) => {
-		const ai = cmsTags.findIndex((t) => t.key === a);
-		const bi = cmsTags.findIndex((t) => t.key === b);
+		const ai = vaultTags.findIndex((t) => t.key === a);
+		const bi = vaultTags.findIndex((t) => t.key === b);
 		return (
 			(ai < 0 ? 999999 : ai) - (bi < 0 ? 999999 : bi) ||
 			a.toLowerCase().localeCompare(b.toLowerCase())
@@ -127,7 +127,7 @@ export async function getCategoryList(): Promise<Category[]> {
 	});
 
 	const rank = (key: string) => {
-		const i = cmsCategories.findIndex((c) => c.key === key);
+		const i = vaultCategories.findIndex((c) => c.key === key);
 		return i < 0 ? 999999 : i;
 	};
 	const lst = Object.keys(count).sort((a, b) => {

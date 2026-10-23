@@ -1,0 +1,81 @@
+name: Sync NetEase playlist
+
+on:
+  schedule:
+    # 06:17 Asia/Shanghai every day; GitHub schedules use UTC.
+    - cron: "17 22 * * *"
+  workflow_dispatch:
+    inputs:
+      force:
+        description: Recheck audio durations even if the playlist is unchanged
+        type: boolean
+        default: false
+
+permissions:
+  contents: write
+
+concurrency:
+  group: sync-netease-playlist
+  cancel-in-progress: false
+
+jobs:
+  sync:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: Checkout source
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
+        with:
+          ref: main
+          fetch-depth: 0
+
+      - name: Install metadata reader
+        run: |
+          python3 -m venv "$RUNNER_TEMP/playlist-venv"
+          "$RUNNER_TEMP/playlist-venv/bin/pip" install --disable-pip-version-check mutagen==1.47.0
+
+      - name: Test snapshot safety
+        run: |
+          "$RUNNER_TEMP/playlist-venv/bin/python" -m unittest discover -s .github/scripts -p 'test_*.py'
+
+      - name: Check playlist and filter previews
+        id: playlist
+        env:
+          FORCE_REFRESH: ${{ inputs.force }}
+        run: |
+          args=()
+          if [ "$FORCE_REFRESH" = true ]; then args+=(--force); fi
+          "$RUNNER_TEMP/playlist-venv/bin/python" .github/scripts/sync_playlist.py "${args[@]}"
+
+      - name: Commit changed snapshot
+        if: steps.playlist.outputs.changed == 'true'
+        id: commit
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add site/data/music.ts .github/music-playlist-state.json
+          if git diff --cached --quiet; then exit 0; fi
+          git commit -m "chore(music): sync full-length playlist tracks"
+          git fetch origin main
+          git rebase origin/main
+          git push origin HEAD:main
+          echo "sha=$(git rev-parse HEAD)" >> "$GITHUB_OUTPUT"
+
+      # GITHUB_TOKEN pushes do not trigger other push workflows.
+      # repository_dispatch is an allowed exception and starts source validation.
+      - name: Deploy updated playlist
+        if: steps.playlist.outputs.site_changed == 'true' && steps.commit.outputs.sha != ''
+        uses: peter-evans/repository-dispatch@28959ce8df70de7be546dd1250a005dd32156697
+        with:
+          token: ${{ github.token }}
+          repository: ${{ github.repository }}
+          event-type: music-updated
+          client-payload: '{"sha": "${{ steps.commit.outputs.sha }}"}'
+
+      - name: Summarize result
+        env:
+          SNAPSHOT_CHANGED: ${{ steps.playlist.outputs.changed }}
+          SITE_CHANGED: ${{ steps.playlist.outputs.site_changed }}
+        run: |
+          echo "Playlist checked. Snapshot changed: $SNAPSHOT_CHANGED. Site changed: $SITE_CHANGED." >> "$GITHUB_STEP_SUMMARY"
+          echo 'Schedule: daily at 06:17 Asia/Shanghai. Audio is checked only when the source changes, or with a forced manual run.' >> "$GITHUB_STEP_SUMMARY"

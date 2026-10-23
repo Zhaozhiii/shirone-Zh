@@ -1,5 +1,5 @@
 enum I18nKey {
-	cmsSeries = "cmsSeries",
+	vaultSeries = "vaultSeries",
 	cmsMovie = "cmsMovie",
 	cmsBook = "cmsBook",
 	cmsPlanned = "cmsPlanned",

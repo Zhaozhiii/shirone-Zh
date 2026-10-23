@@ -1,0 +1,28 @@
+---
+import { getCollection, render } from "astro:content";
+import Card from "@components/atoms/display/Card.svelte";
+import Markdown from "@components/content/Markdown.astro";
+import { getMarkdownStylesheetAssets } from "@utils/markdown-assets";
+import { vaultMedia } from "@utils/vault-content";
+import MainGridLayout from "../../layouts/MainGridLayout.astro";
+
+export async function getStaticPaths() {
+	const entries = await getCollection("spec");
+	return vaultMedia.flatMap((item) => {
+		const entry = entries.find((note) => note.id === `media/${item.key}`);
+		return entry ? [{ params: { key: item.key }, props: { item, entry } }] : [];
+	});
+}
+const { item, entry } = Astro.props;
+const { Content, remarkPluginFrontmatter } = await render(entry);
+const stylesheets = await getMarkdownStylesheetAssets(
+	remarkPluginFrontmatter.markdownSyntaxes,
+);
+---
+<MainGridLayout title={item.title} description={item.description || item.title} page="media">
+  {stylesheets.map(({ pack, css }) => <style is:inline slot="head" data-swup-optional={pack} set:html={css}></style>)}
+  <Card color="var(--card-bg)" radius="l" class="px-9 py-6 w-full">
+    <h1 style="font:var(--m3e-type-headline-medium)">{item.title}</h1>
+    <Markdown class="mt-2"><Content /></Markdown>
+  </Card>
+</MainGridLayout>

@@ -1,0 +1,146 @@
+name: Build and publish native Vault
+on:
+  workflow_call:
+    inputs:
+      content_sha:
+        type: string
+        required: false
+        default: ''
+      allow_rollback:
+        type: boolean
+        default: false
+    secrets:
+      SERVER_SSH_KEY:
+        required: true
+      VAULT_PASSWORDS:
+        required: false
+
+permissions:
+  contents: read
+concurrency:
+  group: vault-publication
+  cancel-in-progress: false
+
+jobs:
+  publish:
+    if: github.repository == 'Zhaozhiii/Obsidian-Vault'
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    env:
+      CI: true
+      CONTENT_DIR: ${{ github.workspace }}/vault
+      CONTENT_REPO_URL: https://github.com/Zhaozhiii/Obsidian-Vault.git
+      CONTENT_READ_TOKEN: ${{ github.token }}
+      VAULT_PASSWORDS: ${{ secrets.VAULT_PASSWORDS }}
+      SERVER_HOST: ${{ vars.SERVER_HOST }}
+      SERVER_USER: ${{ vars.SERVER_USER }}
+      SERVER_KNOWN_HOSTS: ${{ vars.SERVER_KNOWN_HOSTS }}
+      ALLOW_CONTENT_ROLLBACK: ${{ inputs.allow_rollback }}
+    defaults:
+      run:
+        working-directory: theme
+        shell: bash
+    steps:
+      - name: Checkout exact Vault revision
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
+        with:
+          ref: ${{ inputs.content_sha || github.sha }}
+          path: vault
+          fetch-depth: 0
+          persist-credentials: false
+      - name: Resolve website version
+        id: theme
+        working-directory: ${{ github.workspace }}
+        run: |
+          sha="$(git ls-remote https://github.com/Zhaozhiii/shirone-Zh.git refs/heads/main | cut -f1)"
+          [[ "$sha" =~ ^[a-f0-9]{40}$ ]]
+          echo "sha=$sha" >> "$GITHUB_OUTPUT"
+      - name: Checkout exact source revision
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
+        with:
+          repository: Zhaozhiii/shirone-Zh
+          ref: ${{ steps.theme.outputs.sha }}
+          path: theme
+          persist-credentials: false
+      - uses: pnpm/action-setup@a7487c7e89a18df4991f7f222e4898a00d66ddda
+        with:
+          version: 9.14.4
+          run_install: false
+      - uses: actions/setup-node@cdca7365b2dadb8aad0a33bc7601856ffabcc48e
+        with:
+          node-version: 24
+          cache: pnpm
+          cache-dependency-path: theme/pnpm-lock.yaml
+      - name: Install build dependencies
+        run: pnpm install --frozen-lockfile
+      - name: Compile explicit public notes and referenced attachments
+        run: node tools/vault/run-private.mjs materialize
+      - name: Resolve immutable release and public fingerprint
+        id: versions
+        run: |
+          CODE_SHA="$(git rev-parse HEAD)" CONTENT_SHA="$(git -C ../vault rev-parse HEAD)" node --input-type=module -e 'import {releaseVersion} from "./scripts/deploy/release-version.mjs"; import {appendFileSync} from "node:fs"; const {CODE_SHA:c,CONTENT_SHA:d,GITHUB_OUTPUT:o}=process.env; appendFileSync(o,`code_sha=${c}\ncontent_sha=${d}\nrelease_sha=${releaseVersion(c,d)}\n`);'
+          echo "fingerprint=$(node tools/vault/fingerprint.mjs)" >> "$GITHUB_OUTPUT"
+      - name: Check last successful public build
+        id: published
+        uses: actions/cache/restore@5a3ec84eff668545956fd18022155c47e93e2684
+        with:
+          path: .published-vault
+          key: public-v1-${{ steps.versions.outputs.fingerprint }}
+      - name: Validate published content
+        if: steps.published.outputs.cache-hit != 'true' || inputs.allow_rollback
+        run: node tools/vault/run-private.mjs check
+      - name: Build and verify release
+        if: steps.published.outputs.cache-hit != 'true' || inputs.allow_rollback
+        env:
+          CODE_SHA: ${{ steps.versions.outputs.code_sha }}
+          CONTENT_SHA: ${{ steps.versions.outputs.content_sha }}
+          RELEASE_SHA: ${{ steps.versions.outputs.release_sha }}
+        run: |
+          node tools/vault/run-private.mjs build
+          node tools/vault/run-private.mjs verify
+          node scripts/deploy/package.mjs
+      - name: Configure deployment identity
+        if: steps.published.outputs.cache-hit != 'true' || inputs.allow_rollback
+        env:
+          SERVER_SSH_KEY: ${{ secrets.SERVER_SSH_KEY }}
+        run: |
+          test -n "$SERVER_HOST" && test -n "$SERVER_USER" && test -n "$SERVER_KNOWN_HOSTS" && test -n "$SERVER_SSH_KEY"
+          install -d -m 700 ~/.ssh
+          printf '%s\n' "$SERVER_SSH_KEY" > ~/.ssh/id_ed25519
+          chmod 600 ~/.ssh/id_ed25519
+          printf '%s\n' "$SERVER_KNOWN_HOSTS" > ~/.ssh/known_hosts
+      - name: Activate only the current code and content
+        if: steps.published.outputs.cache-hit != 'true' || inputs.allow_rollback
+        id: activate
+        env:
+          CODE_SHA: ${{ steps.versions.outputs.code_sha }}
+          CONTENT_SHA: ${{ steps.versions.outputs.content_sha }}
+          RELEASE_SHA: ${{ steps.versions.outputs.release_sha }}
+        run: |
+          if [ "$(node scripts/deploy/check-current.mjs)" != true ]; then echo 'Superseded; a newer publication will take over.' >> "$GITHUB_STEP_SUMMARY"; exit 0; fi
+          (cd artifacts && sha256sum --check release.tar.gz.sha256)
+          scp -o BatchMode=yes -o StrictHostKeyChecking=yes artifacts/release.tar.gz "$SERVER_USER@$SERVER_HOST:/srv/shirone-blog/site/incoming/$RELEASE_SHA.tar.gz"
+          scp -o BatchMode=yes -o StrictHostKeyChecking=yes artifacts/release.tar.gz.sha256 "$SERVER_USER@$SERVER_HOST:/srv/shirone-blog/site/incoming/$RELEASE_SHA.tar.gz.sha256"
+          if [ "$(node scripts/deploy/check-current.mjs)" != true ]; then exit 0; fi
+          ssh -o BatchMode=yes -o StrictHostKeyChecking=yes "$SERVER_USER@$SERVER_HOST" "/usr/local/bin/shirone-blog-release activate $RELEASE_SHA"
+          curl --fail --silent --show-error https://blog.zhiii.top/healthz | python3 -c 'import json,os,sys; d=json.load(sys.stdin); assert all(d[k] == os.environ[v] for k,v in [("release","RELEASE_SHA"),("code","CODE_SHA"),("content","CONTENT_SHA")])'
+          echo 'deployed=true' >> "$GITHUB_OUTPUT"
+          echo 'Website published successfully: https://blog.zhiii.top' >> "$GITHUB_STEP_SUMMARY"
+      - name: Record successful public fingerprint
+        if: steps.activate.outputs.deployed == 'true'
+        working-directory: ${{ github.workspace }}
+        run: mkdir -p .published-vault && printf '%s\n' '${{ steps.versions.outputs.fingerprint }}' > .published-vault/fingerprint
+      - uses: actions/cache/save@5a3ec84eff668545956fd18022155c47e93e2684
+        if: steps.activate.outputs.deployed == 'true' && steps.published.outputs.cache-hit != 'true'
+        with:
+          path: .published-vault
+          key: public-v1-${{ steps.versions.outputs.fingerprint }}
+      - name: Report unchanged public content
+        if: steps.published.outputs.cache-hit == 'true' && !inputs.allow_rollback
+        run: echo 'No public changes or due publication transitions; full build skipped.' >> "$GITHUB_STEP_SUMMARY"
+      - name: Report a recoverable publication failure
+        if: failure()
+        run: echo 'Publication failed. Your local notes and last successful website are preserved. Check the latest public note Properties or ask Codex to inspect this run.' >> "$GITHUB_STEP_SUMMARY"
+      - name: Remove deployment identity
+        if: always()
+        run: rm -f ~/.ssh/id_ed25519

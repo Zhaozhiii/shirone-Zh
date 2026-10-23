@@ -15,9 +15,9 @@ import SegmentedButton from "@components/atoms/selection/SegmentedButton.svelte"
 import I18nKey from "@i18n/i18nKey";
 import { i18n } from "@i18n/translation";
 import Icon from "@iconify/svelte";
-import { categoryAncestors, categoryName, tagName } from "@utils/cms";
 import { formatCalendarDate } from "@utils/content-date";
 import { getPostUrlBySlug, url } from "@utils/url-utils";
+import { categoryAncestors, categoryName, tagName } from "@utils/vault-content";
 import { onMount } from "svelte";
 
 interface Post {
