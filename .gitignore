@@ -86,3 +86,15 @@ artifacts/shirone-ai-*
 artifacts/deploy/
 artifacts/release.tar.gz*
 src/generated/*.tmp
+
+# content repository (materialized by `pnpm content:sync`)
+/src/content/
+/src/data/*.ts
+/src/user/user-config.ts
+/src/config/FooterConfig.html
+/src/assets/images/
+/public/images/
+/public/assets/banner/
+/public/assets/music/
+/public/assets/projects/
+/public/assets/anime/*.webp

@@ -10,9 +10,9 @@ import { withUserConfig } from "../utils/config-overlay.ts";
  * 类型见 src/types/config.ts。
  */
 export const siteConfig: SiteConfig = withUserConfig("site", {
-	site: "https://blog.zhiii.top/",
+	site: "https://shirone.mysqil.com/",
 	base: "/",
-	title: "Zhaozhiii",
+	title: "Shirone",
 	subtitle: "A Material 3 anime blog",
 	// 电脑端顶栏标题与导航内容区域："left" 左对齐，"center" 居中。
 	topAppBar: {
@@ -52,7 +52,7 @@ export const siteConfig: SiteConfig = withUserConfig("site", {
 		tags: true, // 标签索引页 /tags/
 		about: true, // 关于页 /about/
 	},
-	lang: "zh_CN", // Language code, e.g. 'en', 'zh_CN', 'ja', etc.
+	lang: "en", // Language code, e.g. 'en', 'zh_CN', 'ja', etc.
 	// IANA time zone for precise post and moment timestamps. It is independent of lang.
 	timeZone: "Asia/Shanghai",
 	themeColor: {
@@ -129,7 +129,7 @@ export const siteConfig: SiteConfig = withUserConfig("site", {
 		homeText: {
 			// 仅在首页 Banner 中显示，标题与副标题会上下居中排列。
 			enable: true,
-			title: "Zhaozhiii",
+			title: "Shirone",
 			// 标题下方的快捷入口按钮：text + icon 渲染文字胶囊，仅 icon 渲染圆形图标按钮。
 			// 省略或空数组时不输出任何 DOM（零额外负担）。
 			links: [

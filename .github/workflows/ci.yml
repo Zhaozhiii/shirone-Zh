@@ -15,6 +15,10 @@ concurrency:
 permissions:
   contents: read
 
+env:
+  CONTENT_REPO_URL: https://github.com/Zhaozhiii/Shirone-Zh-Content.git
+  CONTENT_REPO_REF: main
+
 jobs:
   quality:
     name: Code quality
@@ -42,6 +46,9 @@ jobs:
 
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
+
+      - name: Materialize blog content
+        run: pnpm content:sync
 
       - name: Run Biome
         run: pnpm exec biome ci ./src --reporter=github
@@ -72,6 +79,9 @@ jobs:
 
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
+
+      - name: Materialize blog content
+        run: pnpm content:sync
 
       - name: Check Astro diagnostics
         run: pnpm exec astro check
@@ -150,6 +160,8 @@ jobs:
           node-version: 24
           cache: pnpm
       - run: pnpm install --frozen-lockfile
+      - name: Materialize blog content
+        run: pnpm content:sync
       - name: Generate local icon collections
         run: pnpm icons:generate
       - run: pnpm exec playwright install --with-deps chrome
