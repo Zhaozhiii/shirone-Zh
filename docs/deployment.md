@@ -19,28 +19,24 @@ pnpm.cmd content:watch
 ## 检查与发布
 
 ```powershell
+# 修改代码后本地检查；纯内容修改可直接提交内容仓
 pnpm.cmd check
-pnpm.cmd type-check
-pnpm.cmd check:manifest
-pnpm.cmd test:server
-pnpm.cmd build
 git add <明确要提交的文件>
 git commit -m "feat(content): add a new post"
-pnpm.cmd build:release
 git push origin main
 ```
 
 推送后查看 <https://github.com/Zhaozhiii/shirone-Zh/actions>。PR 只检查和构建；`main` 的全部必要 CI 任务成功后才发布，也可在 Actions 中对 `main` 手动运行 Shirone CI。
 跨仓自动发布已启用：内容仓推送 `content/`、`config/`、`data/`、`assets/`、`public/` 或内容清单后，由 `trigger-build.yml` 使用加密 Secret `DISPATCH_TOKEN` 通知主题仓。公开内容仓无需读取令牌。主题仓在 prepare 作业中一次锁定主题和内容提交号，所有检查、预览及构建使用同一个内容 SHA；内容变更触发时使用事件携带的精确 SHA。
 
-发布流水线执行代码质量、Astro/TypeScript 检查、单元测试和双 Node.js 版本构建，不安装浏览器，也不运行 Playwright。页面外观与交互按需使用 Codex 内置浏览器检查。
+发布流水线统一使用 Node.js 24，一次安装依赖，串行执行代码质量、Astro/TypeScript 检查、清单校验、单元测试及一次生产构建，不安装浏览器，也不运行 Playwright。页面外观与交互按需使用 Codex 内置浏览器检查。
 
-发布版本为主题与内容提交号共同计算出的 40 位标识（`scripts/deploy/release-version.mjs`），只改文章也会生成新版本。`release.json` 与 `/healthz` 同时记录 `release`、`code`、`content`。上传前和激活前均核对两仓 `main`，过时构建自动跳过，部署中不强制中断容器切换。只修改内容仓 README 或 docs 不会触发重建。
+发布版本为主题与内容提交号共同计算出的 40 位标识（`scripts/deploy/release-version.mjs`），只改文章也会生成新版本。`release.json` 与 `/healthz` 同时记录 `release`、`code`、`content`。上传前和激活前均核对两仓 `main`，过时构建自动跳过，部署中不强制中断容器切换。服务器负责检查首页和健康状态，Actions 只复核公开版本元数据；不再将无关旧站探测作为博客发布门禁。只修改内容仓 README 或 docs 不会触发重建。
 
 在主题仓 Actions 手动运行 Shirone CI 时，可填写 `content_sha`（完整 40 位提交号）回滚到指定内容，留空则读取最新内容。显式回滚允许内容不是最新提交，但主题仍须是当前 main；也可按下述服务器命令回滚到已有发布版本。
 GitHub 上的源码和 Actions 构建结果是日常发布入口，无需在服务器拉源码或安装主题依赖。
 
-`build:release` 同时更新 `artifacts/deploy/`、`artifacts/release.tar.gz` 和归档 SHA-256；本地与 CI 使用同一打包脚本。
+日常发布只需提交并推送，由 CI 构建和部署；不需要本地重复执行 `build` 或 `build:release`。需要离线发布包时，仅执行一次 `pnpm.cmd build:release`，它会自动构建并打包，同时更新 `artifacts/deploy/`、`artifacts/release.tar.gz` 和归档 SHA-256；本地与 CI 使用同一打包脚本。
 `release.json` 记录两仓提交、共同发布版本和 `dirty` 标记。本地未提交改动允许生成验证用快照（`dirty: true`），正式发布前先提交并重新构建；CI 拒绝脏工作区、物化内容与锁定版本不符，以及与代码和内容计算结果不符的发布版本。
 构建和打包均检查开发说明是否进入产物；页面及相册开发规则分别在 `rules/page-routes.md`、`rules/album-media.md`，不得放入 `src/pages/` 或 `public/`。
 仓库使用 `.gitattributes` 固定文本换行为 LF，Biome 检查失败会阻止部署。
@@ -87,7 +83,7 @@ $env:PLAYWRIGHT_PORT = "4381"
 pnpm.cmd exec playwright test tests/site/a11y.spec.ts tests/site/banner.spec.ts
 ```
 
-CI 使用默认 Chrome。新增 Node.js 静态服务的独立测试运行 `pnpm.cmd test:server`，覆盖 404、HEAD、MIME、缓存、范围请求和静态根目录隔离。
+CI 不运行浏览器测试。新增 Node.js 静态服务的独立测试运行 `pnpm.cmd test:server`，覆盖 404、HEAD、MIME、缓存、范围请求和静态根目录隔离。
 
 ## 切换到作者修改版
 
