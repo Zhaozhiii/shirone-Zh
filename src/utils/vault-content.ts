@@ -15,6 +15,7 @@ export interface VaultMedia {
 	title: string;
 	kind: "movie" | "book";
 	creator?: string;
+	year?: string;
 	status?: string;
 	rating?: number;
 	date?: string;

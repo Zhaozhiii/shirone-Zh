@@ -103,6 +103,8 @@ export function readRecords(root) {
     const name = posix.basename(path, ".md");
     data.title ??= name;
     data.key ??= data.slug || data.id || name;
+    const slug = value => String(value).normalize("NFC").trim().replace(/[^\p{L}\p{N}_.\/-]+/gu,"-").replace(/^-+|-+$/g,"") || createHash("sha256").update(path).digest("hex").slice(0,16);
+    if (["media","albums"].includes(domain)) data.key=slug(data.key).replaceAll("/","-").replaceAll(".","-");
     if (["posts", "moments"].includes(domain)) {
       if (!data.published) {
         let created;
@@ -111,26 +113,29 @@ export function readRecords(root) {
         } catch { /* A new offline note may not have a Git commit yet. */ }
         data.published = String(data.publishAt || data.created || created || statSync(file).birthtime.toISOString()).slice(0,10);
       }
-      data.alias ??= data.slug || data.id || name;
+      data.alias ??= slug(data.slug || data.id || name);
       if (domain === "posts") data.image ??= data.cover;
     }
     if (["movie", "book"].includes(data.type)) data.kind ??= data.type;
     if (domain === "devices") {
       data.id ??= data.key; data.name ??= data.title; data.brand ??= "";
-      data.category ??= "other"; data.status ??= "active"; data.specs ??= "";
-      data.description ??= note.body.trim(); data.image ??= data.cover;
+      data.category ??= "other"; data.status ??= "active"; data.specs ??= data.model || "";
+      data.description = note.body.trim() || data.description || ""; data.image ??= data.photo || data.cover;
     }
     if (domain === "projects") {
-      data.summary ??= note.body.trim(); data.category ??= "other";
+      data.summary = note.body.trim() || data.summary || ""; data.category ??= "other";
       data.phase ??= "building"; data.technologies ??= [];
     }
     if (domain === "friends") {
       data.id ??= parseInt(createHash("sha256").update(String(data.key)).digest("hex").slice(0,8),16);
       data.siteurl ??= data.url; data.imgurl ??= data.cover || "";
-      data.desc ??= note.body.trim(); data.tags ??= [];
+      data.desc = note.body.trim() || data.desc || ""; data.tags ??= [];
     }
-    if (domain === "announcements") data.content ??= note.body.trim();
+    if (domain === "announcements") data.content = note.body.trim() || data.content || "";
+    if (["skills","timeline","anime"].includes(domain)) data.description = note.body.trim() || data.description || "";
     if (domain === "media") data.description ??= note.body.trim();
+    if (domain === "media") { data.creator ??= data.director || data.author; if (data.year !== undefined) data.year=String(data.year); }
+    if (domain === "albums") data.description = note.body.trim() || data.description || "";
     if (data.passwordSecret && data.publish === true) {
       if (!/^[A-Z][A-Z0-9_]+$/.test(data.passwordSecret)) throw new Error("Invalid password secret reference");
       let passwords;
@@ -444,8 +449,8 @@ export function compileVault({
     const id = r.domain === "pages" ? r.data.key : r.data.alias;
     if (!/^[\p{L}\p{N}_./-]+$/u.test(String(id)) || String(id).split("/").includes("..")) throw new Error("Invalid public note slug");
     if (r.domain === "pages" && !["about","friends"].includes(id)) throw new Error("Unsupported special page");
-    const data = mapAssets(r.data,r.path);
-    delete data.passwordSecret;
+    const fields = new Set([...Object.keys(domains[r.domain]?.fields || {}),"title","order","updated","updatedAt"]);
+    const data = mapAssets(Object.fromEntries(Object.entries(r.data).filter(([key])=>fields.has(key))),r.path);
     output(`src/content/${collection}/${id}.md`, noteText(data,wiki(r.body,r.path)));
   }
   for (const r of sorted.filter(r => r.domain === "media")) {
@@ -515,7 +520,7 @@ export function compileVault({
 	}
 	if (manifest.managed.includes("albums"))
 		for (const r of sorted.filter((r) => r.domain === "albums")) {
-			if (!/^[a-zA-Z0-9_-]+$/.test(r.data.key))
+			if (!/^[\p{L}\p{N}_-]+$/u.test(r.data.key))
 				throw new Error("相册标识只允许字母、数字、短横线和下划线");
 			const target = `public/images/albums/${r.data.key}/info.json`;
 			output(

@@ -64,7 +64,7 @@ jobs:
       # GITHUB_TOKEN pushes do not trigger other push workflows.
       # repository_dispatch is an allowed exception and starts source validation.
       - name: Deploy updated playlist
-        if: steps.playlist.outputs.site_changed == 'true' && steps.commit.outputs.sha != ''
+        if: steps.commit.outputs.sha != ''
         uses: peter-evans/repository-dispatch@28959ce8df70de7be546dd1250a005dd32156697
         with:
           token: ${{ github.token }}

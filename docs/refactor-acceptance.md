@@ -10,7 +10,7 @@
 
 ## 已执行本地验证
 
-- 全套 Node 单元测试：325 项通过；新增私有 YAML 编辑隔离测试后的相关 16 项检查通过。
+- 全套 Node 单元测试首轮 325 项通过；补齐空库、迁移、正文单一来源和中文默认网址后的相关 20 项检查通过。源码 CI 执行完整套件。
 - 音乐同步 Python 测试：6 项通过。
 - Astro：0 errors、0 warnings，保留原有 2 条无关 hints。
 - Biome、TypeScript 声明检查、atom/Markdown/skill manifest 校验通过。
@@ -27,11 +27,17 @@
 
 ## 设备验收范围
 
-Windows 的 Git 插件及自动同步配置已安装，凭据使用本机 Git Credential Manager。
+Windows 已实际加载新 Vault 与 Git 插件，未加载任何 CMS 插件或视图，原生关系图谱可用。
+原生编辑器创建的临时私人测试笔记已由两分钟防抖自动提交并推送，成功合并远端版本标记；测试笔记已清理。
+凭据使用本机 Git Credential Manager。40 条结构化笔记已去除与正文重复的属性，编辑正文即可更新网站内容。
+附件按自然的“相册/项目”组织，移除约 29 MB 无引用模板资源，恢复副本保留在本机备份。
 Android 采用 Obsidian Git 官方建议的 GitSync，避免其移动端 JS Git 内存及稳定性限制。
 未连接用户手机，手机首次授权、应用切换权限、双向与离线实机往返仍需在手机上验证。
 强制结束应用不保证网络推送完成，本地笔记继续保留。
 
 ## 线上切换
 
-线上 Actions、健康检查、旧仓库归档和服务器定时任务停用结果在切换完成后补充。
+公开源码检查：[源码 CI](https://github.com/Zhaozhiii/shirone-Zh/actions/workflows/ci.yml)。
+正式构建与部署：[私有发布](https://github.com/Zhaozhiii/Obsidian-Vault/actions/workflows/publish.yml)。
+现网版本元数据：[healthz](https://blog.zhiii.top/healthz)。
+正式切换核验包括：两仓版本、公开页面与附件、隐藏相册 404、私有内容排除、原有音乐，以及旧服务器时钟停止和旧仓库归档。

@@ -19,12 +19,13 @@ Properties 默认隐藏，需要时通过 Obsidian 原生命令显示文件属�
 | friend | 友链 | title、url、cover、tags |
 | project | 项目 | title、phase、technologies、cover、website、repository |
 | announcement | 公告 | title、publishAt、unpublishAt；正文即公告 |
-| album | 相册 | key（英文/数字/短横线）、photos、cover、passwordSecret |
+| album | 相册 | key（支持中文/数字/短横线）、photos、cover、passwordSecret |
 | category / tag / series | 可选分类、标签、系列描述 | key、name/title、parent |
 | skill / timeline / anime | 原有数据页 | 使用迁移笔记中的原有属性 |
 | page | 特殊正文页 | key: about 或 friends |
 
 分类、标签和系列可以直接填写文章属性，不必建立定义笔记。
+设备、项目、友链等正文是网站介绍的单一编辑来源；迁移时去除重复属性。模板和使用说明已从默认关系图谱过滤。
 标题默认文件名；日期优先 `published`、`publishAt`、`created`，否则用 Git 首次创建时间。
 模板自动填写日期。首次公开前设置 `slug`，之后保留它，改标题或移动文件不会改变网址。
 迁移内容保留原有固定标识、排序、可见状态和日期。

@@ -14,6 +14,7 @@ import { Icon } from "astro-icon/components";
         <div><span class="media-item__type">{i18n(item.kind === "movie" ? I18nKey.cmsMovie : I18nKey.cmsBook)}</span>
         <h2><a href={`/media/${encodeURIComponent(item.key)}/`}>{item.title}</a></h2>
         {item.creator && <p>{item.creator}</p>}
+        {item.year && <p>{item.year}</p>}
         {item.status && <p>{i18n(item.status === "completed" ? I18nKey.cmsCompleted : item.status === "in-progress" ? I18nKey.cmsInProgress : I18nKey.cmsPlanned)}</p>}
         {item.rating !== undefined && <p>{i18n(I18nKey.cmsRating)} {item.rating} / 10</p>}
         {item.date && <time datetime={item.date}>{item.date}</time>}

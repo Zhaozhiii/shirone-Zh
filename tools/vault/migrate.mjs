@@ -14,7 +14,15 @@ export function migrate(source, vault, theme) {
   for (const folder of ["assets", "public", "cms/media", "content"]) {
     for (const file of files(join(source,folder)).filter(p => !/\.(md|mdx|json|ts|txt)$/.test(p) && !p.endsWith(".gitkeep"))) {
       const old = relative(source,file).replaceAll("\\","/");
-      const dest = "附件/"+old;
+      const natural = old.replace(/^public\/images\/albums\//,"相册/")
+        .replace(/^public\/images\/moments\//,"动态/")
+        .replace(/^public\/assets\/projects\//,"项目/")
+        .replace(/^public\/assets\/music\//,"音乐/")
+        .replace(/^public\/assets\/anime\//,"影视/")
+        .replace(/^(?:assets\/images|cms\/media)\//,"图片/")
+        .replace(/^content\/posts\//,"博客/")
+        .replace(/^public\/(?:images|assets)\//,"");
+      const dest = "附件/"+natural;
       assets.set(old,dest);
       if (old.startsWith("public/")) assets.set("/"+old.slice(7),dest);
       mkdirSync(dirname(join(vault,dest)),{recursive:true});
@@ -61,9 +69,10 @@ export function migrate(source, vault, theme) {
         continue;
       }
       // Existing album/structured data is kept verbatim in Properties; prose belongs in the body.
-      if (!body.trim() && ["devices","projects","friends","media","announcements"].includes(domain)) {
-        const field = {devices:"description",projects:"summary",friends:"desc",media:"description",announcements:"content"}[domain];
-        body = String(data[field] || "");
+      if (["devices","projects","friends","media","announcements","skills","timeline","anime"].includes(domain)) {
+        const field = {devices:"description",projects:"summary",friends:"desc",media:"description",announcements:"content",skills:"description",timeline:"description",anime:"description"}[domain];
+        if (!body.trim()) body = String(data[field] || "");
+        if (body.trim() === String(data[field] || "").trim()) delete data[field];
       }
       const name = String(data.title || data.name || originalId).replace(/[<>:"/\\|?*\x00-\x1f]/g,"-").replace(/[. ]+$/,"");
       let target = join(vault,folder,name+".md");

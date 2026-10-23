@@ -65,6 +65,7 @@ export const domains = {
 	media: {
 		label: "电影书籍",
 		fields: {
+			year: ["年份", "text"],
 			key: ["稳定标识", "text", true],
 			title: ["名称", "text", true],
 			kind: ["类型", "select", true, ["movie", "book"]],

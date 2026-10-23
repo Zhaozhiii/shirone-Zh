@@ -5,6 +5,7 @@ import { tmpdir } from "node:os";
 import { join, dirname } from "node:path";
 import { compileVault, noteText, readRecords, visible, instant, files } from "../../tools/vault/core.mjs";
 import { verifyPrivateOutput } from "../../tools/vault/verify-dist.mjs";
+import { migrate } from "../../tools/vault/migrate.mjs";
 
 function fixture(t) {
   const temp=mkdtempSync(join(tmpdir(),"native-vault-"));
@@ -129,4 +130,38 @@ test("invalid private YAML remains private without blocking unrelated publicatio
 test("an empty public Vault retains directory contracts used by theme tooling",t=>{
   const {root,build}=fixture(t);build();
   for(const path of ["public/images/albums","public/images/vault","src/content/posts","src/content/moments","src/content/spec"]) assert.ok(existsSync(join(root,path)));
+});
+
+test("legacy migration preserves relative article images and splits navigation groups without copying unused assets",t=>{
+  const {source,root,write}=fixture(t),vault=join(root,"../migrated");
+  write("content/posts/original/index.md",noteText({title:"Original",published:"2026-10-24",draft:false},"![图](./image.png)"));
+  write("content/posts/original/image.png","IMAGE_BYTES");write("public/unused.mp3","UNUSED_AUDIO");
+  write("assets/images/avatar.png","BRANDING_BYTES");write("config/profile.yaml","avatar: assets/images/avatar.png\n");
+  write("cms/compass/links.md",noteText({name:"Research",key:"research",entries:[{label:"Example",href:"https://example.com"}]}));
+  mkdirSync(vault);migrate(source,vault,root);
+  assert.equal(files(vault).filter(p=>p.endsWith(".mp3")).length,0);
+  assert.equal(files(join(root,"site/public/images/branding")).length,1);
+  compileVault({sourceRoot:vault,root});
+  assert.match(readFileSync(join(root,"src/content/posts/original.md"),"utf8"),/\/images\/vault\/[a-f0-9]+\.png/);
+  assert.match(readFileSync(join(root,"src/data/compass.ts"),"utf8"),/Research/);
+  assert.throws(()=>migrate(source,vault,root),/empty Vault/);
+});
+
+test("native prose edits update website cards even when an old description property remains",t=>{
+  const {root,note,build}=fixture(t);
+  note("device.md",{type:"device",publish:true,description:"OLD_DESCRIPTION"},"NEW_NATIVE_BODY");
+  note("project.md",{type:"project",publish:true,summary:"OLD_SUMMARY"},"NEW_PROJECT_BODY");
+  build();
+  assert.match(readFileSync(join(root,"src/data/devices.ts"),"utf8"),/NEW_NATIVE_BODY/);
+  assert.doesNotMatch(readFileSync(join(root,"src/data/devices.ts"),"utf8"),/OLD_DESCRIPTION/);
+  assert.match(readFileSync(join(root,"src/data/projects.ts"),"utf8"),/NEW_PROJECT_BODY/);
+});
+
+test("ordinary Chinese titles with spaces get usable default article and album URLs",t=>{
+  const {root,note,build}=fixture(t);
+  note("YOLO 学习.md",{type:"article",publish:true},"学习正文");
+  note("我的 相册.md",{type:"album",publish:true,photos:[]},"相册正文");
+  build();
+  assert.ok(existsSync(join(root,"src/content/posts/YOLO-学习.md")));
+  assert.ok(existsSync(join(root,"public/images/albums/我的-相册/info.json")));
 });
