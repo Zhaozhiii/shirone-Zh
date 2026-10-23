@@ -10,6 +10,7 @@ for (const d of [
 	"cms",
 	"config",
 	"data",
+	"public/images/albums",
 ])
 	mkdirSync(join(root, d), { recursive: true });
 writeFileSync(
@@ -23,6 +24,12 @@ writeFileSync(
 	"# About\n\nPublic theme test fixture.\n",
 );
 writeFileSync(join(root, "config/footer.html"), "");
+writeFileSync(join(root, "public/images/albums/.keep"), "");
+for (const domain of ["posts", "moments"])
+	writeFileSync(
+		join(root, `content/${domain}/fixture.md`),
+		`---\ntitle: Theme test fixture\npublished: 2026-10-24\ndraft: true\n---\n\nPublic fixture.\n`,
+	);
 writeFileSync(
 	join(root, "data/music.ts"),
 	'import type { TrackDescriptor } from "@/types/musicConfig";\nexport const musicTracks: readonly TrackDescriptor[] = [];\n',

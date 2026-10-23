@@ -1,4 +1,5 @@
 import ts from "typescript";
+import { execFileSync } from "node:child_process";
 import { build } from "esbuild";
 import { readFileSync, writeFileSync, mkdirSync, cpSync } from "node:fs";
 import { resolve, join } from "node:path";
@@ -129,6 +130,16 @@ result["nav-bar"] = {
 writeFileSync(
 	join(root, "tools/cms/settings-schema.json"),
 	JSON.stringify(result, null, 2) + "\n",
+);
+execFileSync(
+	process.execPath,
+	[
+		join(root, "node_modules/@biomejs/biome/bin/biome"),
+		"format",
+		"--write",
+		join(root, "tools/cms/settings-schema.json"),
+	],
+	{ cwd: root, stdio: "pipe", windowsHide: true },
 );
 const output = resolve(process.argv[2] || join(root, "artifacts/cms"));
 mkdirSync(output, { recursive: true });

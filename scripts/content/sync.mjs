@@ -539,7 +539,16 @@ function runWatch() {
 	log(`Watching ${sourceRoot}, press Ctrl+C to stop`);
 
 	let timer = null;
-	watch(sourceRoot, { recursive: true }, () => {
+	watch(sourceRoot, { recursive: true }, (_event, filename) => {
+		// Obsidian workspace changes and preview logs are not content changes.
+		// In particular, logging a sync must not schedule another sync.
+		if (
+			filename &&
+			!/^(?:(?:content|cms|config|data|assets|public)(?:\/|$)|shirone\.content\.json$)/.test(
+				String(filename).replaceAll("\\", "/"),
+			)
+		)
+			return;
 		if (timer) clearTimeout(timer);
 		timer = setTimeout(() => {
 			try {
