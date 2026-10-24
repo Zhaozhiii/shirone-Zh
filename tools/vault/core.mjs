@@ -59,6 +59,7 @@ export function noteText(data, body = "") {
 	return `---\n${stringify(data, { lineWidth: 0 }).trimEnd()}\n---\n\n${body.replace(/^\n+/, "")}`;
 }
 export function visible(data, time) {
+	if (data.publish !== true || data.draft === true || data.visible === false) return false;
 	const start = instant(data.publishAt),
 		end = instant(data.unpublishAt);
 	return (
@@ -272,6 +273,7 @@ export function schedule(records) {
 	return [
 		...new Set(
 			records
+				.filter(r => r.data.publish === true)
 				.flatMap((r) => [
 					instant(r.data.publishAt),
 					instant(r.data.unpublishAt),

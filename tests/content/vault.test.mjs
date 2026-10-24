@@ -97,6 +97,15 @@ test("time-only publication uses the note date rather than the build day", t => 
     assert.match(readFileSync(join(root,"src/content/moments/launch.md"),"utf8"), /published: 2026-10-20T03:13:15\+08:00/);
   }
 });
+
+test("private unfinished time Properties cannot block another note's publication", t => {
+  const { root, note, build } = fixture(t);
+  note("草稿.md", {type:"moment", publish:false, published:"暂未确定", publishAt:"3:13:15", unpublishAt:"还没想好"}, "PRIVATE_UNFINISHED_TIME");
+  note("公开.md", {type:"article", publish:true, slug:"public", published:"2026.1.2"}, "Public");
+  build();
+  assert.match(readFileSync(join(root,"src/content/posts/public.md"),"utf8"), /Public/);
+  assert.equal(files(join(root,"src/content/moments")).length, 0);
+});
 test("moving and retitling a note preserves its explicit slug; duplicates fail",t=>{
   const {source,root,note,build}=fixture(t);
   note("old.md",{type:"article",publish:true,slug:"stable",title:"Old"},"Body");build();
