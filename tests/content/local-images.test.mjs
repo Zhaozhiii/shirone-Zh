@@ -126,3 +126,17 @@ test("installed pre-commit hook imports images during an ordinary Git commit", (
 	assert.equal(git(["status", "--porcelain"]), "");
 	assert.equal(readdirSync(join(vault, "附件/导入")).length, 1);
 });
+
+test("absolute references to images already inside the Vault become portable without making copies", (t) => {
+	const { vault } = fixture(t);
+	const picture = join(vault, "notes/photo.png");
+	writeFileSync(picture, "LOCAL_IMAGE");
+	const result = importImages({
+		vault,
+		notePath: "notes/a.md",
+		text: `![x](${pathToFileURL(picture).href} "标题")`,
+	});
+	assert.equal(result.imported, 1);
+	assert.equal(result.text, '![x](photo.png "标题")');
+	assert.deepEqual(result.attachments, ["notes/photo.png"]);
+});

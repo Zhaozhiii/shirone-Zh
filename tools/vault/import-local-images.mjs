@@ -50,19 +50,23 @@ export function importImages({ vault, notePath, text }) {
 		if (!imageType.test(decoded)) return;
 		const target = resolve(dirname(join(vault, notePath)), decoded);
 		// Already-contained attachments stay as authored. Unique wiki names are handled by Obsidian.
-		if (inside(vault, target)) return;
+		const contained = inside(vault, target);
+		if (contained && !isAbsolute(decoded)) return;
 		if (!existsSync(target) || !lstatSync(target).isFile()) {
 			missing.add(value);
 			return;
 		}
-		const bytes = readFileSync(target);
-		const name =
-			createHash("sha256").update(bytes).digest("hex") +
-			extname(target).toLowerCase();
-		const attachment = `附件/导入/${name}`;
-		mkdirSync(join(vault, "附件/导入"), { recursive: true });
-		if (!existsSync(join(vault, attachment)))
-			writeFileSync(join(vault, attachment), bytes);
+		let attachment = relative(vault, target).replaceAll("\\", "/");
+		if (!contained) {
+			const bytes = readFileSync(target);
+			const name =
+				createHash("sha256").update(bytes).digest("hex") +
+				extname(target).toLowerCase();
+			attachment = `附件/导入/${name}`;
+			mkdirSync(join(vault, "附件/导入"), { recursive: true });
+			if (!existsSync(join(vault, attachment)))
+				writeFileSync(join(vault, attachment), bytes);
+		}
 		attachments.add(attachment);
 		const url = relative(
 			dirname(join(vault, notePath)),
