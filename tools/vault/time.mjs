@@ -43,3 +43,13 @@ export function shanghaiDate(value) {
 		.toISOString()
 		.slice(0, 10);
 }
+
+export function displayTime(value) {
+	if (!value) return "";
+	const normalized = normalizeTime(value);
+	if (!normalized.includes("T")) return normalized;
+	return new Date(Date.parse(normalized) + 8 * 60 * 60 * 1000)
+		.toISOString()
+		.slice(0, 19)
+		.replace("T", " ");
+}

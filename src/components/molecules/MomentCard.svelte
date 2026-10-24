@@ -37,7 +37,9 @@ let {
 } = $props();
 
 const publishedAt = $derived(new Date(moment.published));
-const timeText = $derived(formatDateToYYYYMMDDHHmm(publishedAt));
+const timeText = $derived(
+	moment.displayDate ?? formatDateToYYYYMMDDHHmm(publishedAt),
+);
 </script>
 
 <article class="moment-card {className}" id="moment-{moment.id}" use:reveal={{ delay }}>
@@ -71,7 +73,7 @@ const timeText = $derived(formatDateToYYYYMMDDHHmm(publishedAt));
 			{/if}
 		</div>
 
-		<time class="moment-card__time" datetime={moment.published}>{timeText}</time>
+		{#if timeText}<time class="moment-card__time" datetime={moment.published}>{timeText}</time>{/if}
 	</header>
 
 	{#if moment.html.trim()}

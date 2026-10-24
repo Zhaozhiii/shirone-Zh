@@ -106,6 +106,37 @@ test("private unfinished time Properties cannot block another note's publication
   assert.match(readFileSync(join(root,"src/content/posts/public.md"),"utf8"), /Public/);
   assert.equal(files(join(root,"src/content/moments")).length, 0);
 });
+
+test("date is optional display metadata independent of publication windows", t => {
+  const {root,note,build}=fixture(t);
+  note("无日期.md",{type:"article",publish:true,slug:"undated"},"No date");
+  note("日期.md",{type:"article",publish:true,slug:"dated",date:"2026.1.2"},"Date only");
+  note("时间.md",{type:"moment",publish:true,slug:"timed",date:"2026.1.2 3:4:5"},"Time");
+  note("空动态.md",{type:"moment",publish:true,slug:"empty",date:""},"No date");
+  note("时区.md",{type:"article",publish:true,slug:"zoned",date:"2026-01-01T22:04:05Z"},"Time zone");
+  build();
+  assert.match(readFileSync(join(root,"src/content/posts/undated.md"),"utf8"), /displayDate: ""/);
+  assert.match(readFileSync(join(root,"src/content/posts/dated.md"),"utf8"), /displayDate: "2026-01-02"/);
+  assert.match(readFileSync(join(root,"src/content/moments/timed.md"),"utf8"), /displayDate: "2026-01-02 03:04:05"/);
+  assert.match(readFileSync(join(root,"src/content/moments/empty.md"),"utf8"), /displayDate: ""/);
+  assert.match(readFileSync(join(root,"src/content/posts/zoned.md"),"utf8"), /published: 2026-01-02\n/);
+  assert.match(readFileSync(join(root,"src/content/posts/zoned.md"),"utf8"), /displayDate: "2026-01-02 06:04:05"/);
+  note("日期.md",{type:"article",publish:true,slug:"dated",date:"2026.1.2",publishAt:"2026.10.25 3:4:5"},"Scheduled");
+  build();
+  assert.equal(existsSync(join(root,"src/content/posts/dated.md")),false);
+});
+
+test("announcement date and simple link compile without requiring schedule Properties", t => {
+  const {root,note,build}=fixture(t);
+  note("公告.md",{type:"announcement",publish:true,title:"Notice",date:"2026.1.2 3:4:5",link:"https://example.com"},"Notice body");
+  build();
+  const output = readFileSync(join(root,".vault-cache/config/announcement.yaml"),"utf8");
+  assert.match(output,/2026-01-02 03:04:05/);
+  assert.match(output,/url: https:\/\/example.com/);
+  note("公告.md",{type:"announcement",publish:true,title:"Notice",date:"",link:""},"Notice body");
+  build();
+  assert.doesNotMatch(readFileSync(join(root,".vault-cache/config/announcement.yaml"),"utf8"),/2026-01-02/);
+});
 test("moving and retitling a note preserves its explicit slug; duplicates fail",t=>{
   const {source,root,note,build}=fixture(t);
   note("old.md",{type:"article",publish:true,slug:"stable",title:"Old"},"Body");build();

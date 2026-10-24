@@ -14,6 +14,7 @@ export interface PostsSchemaOutput {
 	seriesOrder?: number;
 	categoryAncestors?: string[];
 	title: string;
+	displayDate?: string;
 	published: Date;
 	publishedAt?: Date;
 	updated?: Date;
@@ -48,6 +49,7 @@ export interface PostsSchemaOutput {
 
 export interface MomentsSchemaOutput {
 	order?: number;
+	displayDate?: string;
 	published: Date;
 	pinned: boolean;
 	location: string;
@@ -64,6 +66,7 @@ const postsSchema: z.ZodType<PostsSchemaOutput> = z.object({
 	seriesOrder: z.number().optional(),
 	categoryAncestors: z.array(z.string()).optional(),
 	title: z.string(),
+	displayDate: z.string().optional(),
 	published: z.date(),
 	publishedAt: z.date().optional(),
 	updated: z.date().optional(),
@@ -103,6 +106,7 @@ const specSchema: z.ZodType<Record<string, never>> = z.object({});
 
 const momentsSchema: z.ZodType<MomentsSchemaOutput> = z.object({
 	order: z.number().optional(),
+	displayDate: z.string().optional(),
 	published: z.date(),
 	pinned: z.boolean().optional().default(false),
 	location: z.string().optional().default(""),

@@ -3,6 +3,13 @@ import {
 	formatInstantDateTimeInSiteTimeZone,
 } from "./content-date";
 
+export function publicationDateLabel(data: {
+	displayDate?: string;
+	published: Date;
+}): string {
+	return data.displayDate ?? formatCalendarDate(data.published);
+}
+
 export function formatDateToYYYYMMDD(date: Date): string {
 	return formatCalendarDate(date);
 }

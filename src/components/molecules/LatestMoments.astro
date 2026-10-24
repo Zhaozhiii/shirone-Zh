@@ -45,14 +45,14 @@ const moments = isPageAvailable("moments")
 							aria-label={`${i18n(I18nKey.moments)}: ${moment.excerpt}`}
 						>
 							<div class="latest-moments__meta">
-								<Icon
+								{moment.displayDate !== "" && <><Icon
 									name="material-symbols:schedule-rounded"
 									class="latest-moments__meta-icon"
 									aria-hidden="true"
 								/>
 								<time datetime={moment.published}>
-									{formatDateToYYYYMMDD(new Date(moment.published))}
-								</time>
+									{moment.displayDate ?? formatDateToYYYYMMDD(new Date(moment.published))}
+								</time></>}
 								{(moment.hasImage || moment.pinned) && (
 									<span class="latest-moments__badges">
 										{moment.hasImage && (

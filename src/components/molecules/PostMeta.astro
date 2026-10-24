@@ -12,6 +12,7 @@ import { categoryName, tagName } from "@utils/vault-content";
 
 interface Props {
 	class?: string;
+	displayDate?: string;
 	published: Date;
 	updated?: Date;
 	tags: string[];
@@ -38,8 +39,8 @@ const tagLinks = tags.map((t) => ({
 
 <PostMeta
 	class={className}
-	published={formatDateToYYYYMMDD(published)}
-	updated={updated ? formatDateToYYYYMMDD(updated) : undefined}
+	published={Astro.props.displayDate ?? formatDateToYYYYMMDD(published)}
+	updated={Astro.props.displayDate === undefined && updated ? formatDateToYYYYMMDD(updated) : undefined}
 	category={categoryLink}
 	tags={tagLinks}
 	hideUpdate={hideUpdateDate}

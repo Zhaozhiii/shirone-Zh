@@ -167,6 +167,7 @@ export type MomentItem = {
 	id: string;
 	/** ISO 字符串（Date 无法跨岛序列化） */
 	published: string;
+	displayDate?: string;
 	/** 正文 HTML（站点统一 markdown 插件链渲染） */
 	html: string;
 	pinned: boolean;
@@ -219,6 +220,7 @@ export async function getSortedMoments(): Promise<MomentItem[]> {
 			return {
 				id: entry.id,
 				published: new Date(entry.data.published).toISOString(),
+				displayDate: entry.data.displayDate,
 				html: code,
 				pinned: entry.data.pinned,
 				location: entry.data.location,
@@ -235,6 +237,7 @@ export type RecentMomentItem = {
 	id: string;
 	/** ISO 字符串（Date 无法跨岛序列化） */
 	published: string;
+	displayDate?: string;
 	/** 纯文本摘要（HTML 剥离 + 实体解码 + 空白折叠） */
 	excerpt: string;
 	pinned: boolean;
@@ -283,6 +286,7 @@ export async function getRecentMomentItems(
 			return {
 				id: entry.id,
 				published: new Date(entry.data.published).toISOString(),
+				displayDate: entry.data.displayDate,
 				excerpt: htmlToExcerpt(code),
 				pinned: entry.data.pinned,
 				hasImage: entry.data.images.length > 0,

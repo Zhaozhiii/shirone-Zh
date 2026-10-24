@@ -17,7 +17,7 @@ import { parse, stringify } from "yaml";
 import { unified } from "unified";
 import remarkParse from "remark-parse";
 import { domains } from "./model.mjs";
-import { instant, normalizeTime, shanghaiDate } from "./time.mjs";
+import { instant, normalizeTime, shanghaiDate, displayTime } from "./time.mjs";
 export { instant } from "./time.mjs";
 import adapters from "./adapters.json" with { type: "json" };
 
@@ -56,7 +56,9 @@ export function readNote(text) {
 	};
 }
 export function noteText(data, body = "") {
-	return `---\n${stringify(data, { lineWidth: 0 }).trimEnd()}\n---\n\n${body.replace(/^\n+/, "")}`;
+	let yaml = stringify(data, { lineWidth: 0 }).trimEnd();
+	if (data.displayDate !== undefined) yaml = yaml.replace(/^displayDate:.*$/m, `displayDate: ${JSON.stringify(data.displayDate)}`);
+	return `---\n${yaml}\n---\n\n${body.replace(/^\n+/, "")}`;
 }
 export function visible(data, time) {
 	if (data.publish !== true || data.draft === true || data.visible === false) return false;
@@ -86,6 +88,7 @@ export function readRecords(root) {
     if (!domain) continue;
     const path = relative(root, file).replaceAll("\\", "/");
     const data = { ...note.data };
+    const authoredDate = data.date ?? data.publishedAt ?? data.published;
     const name = posix.basename(path, ".md");
     data.title ??= name;
     data.key ??= data.slug || data.id || name;
@@ -102,6 +105,7 @@ export function readRecords(root) {
       return createdDate;
     };
     if (["posts", "moments"].includes(domain)) {
+      if (data.date !== undefined) data.published = data.date || undefined;
       if (!data.published) {
         data.published = data.publish === true ? (data.publishAt ? normalizeTime(data.publishAt, `${path}：发布时间`, creationDate).slice(0,10) : creationDate()) : String(data.created || statSync(file).birthtime.toISOString()).slice(0,10);
       }
@@ -112,7 +116,7 @@ export function readRecords(root) {
       if (data.published) {
         const published = normalizeTime(data.published, `${path}：发布日期`, creationDate);
         if (domain === "posts") {
-          data.published = published.slice(0,10);
+          data.published = published.includes("T") ? shanghaiDate(published) : published;
           if (published.includes("T")) data.publishedAt ||= published;
         } else data.published = published;
       }
@@ -123,6 +127,11 @@ export function readRecords(root) {
         if (data[field] === undefined) continue;
         if (data[field] === "" || data[field] === null) { delete data[field]; continue; }
         data[field] = normalizeTime(data[field], `${path}：${field}`, field === "updatedAt" && data.updated ? () => normalizeTime(data.updated).slice(0,10) : referenceDate);
+      }
+      if (["posts", "moments"].includes(domain)) {
+        data.displayDate = authoredDate ? displayTime(normalizeTime(authoredDate, `${path}：date`, creationDate)) : "";
+        delete data.updated;
+        delete data.updatedAt;
       }
     }
     if (["movie", "book"].includes(data.type)) data.kind ??= data.type;
@@ -140,7 +149,11 @@ export function readRecords(root) {
       data.siteurl ??= data.url; data.imgurl ??= data.cover || "";
       data.desc = note.body.trim() || data.desc || ""; data.tags ??= [];
     }
-    if (domain === "announcements") data.content = note.body.trim() || data.content || "";
+    if (domain === "announcements") {
+      data.content = note.body.trim() || data.content || "";
+      if (typeof data.link === "string") data.link = data.link ? {url:data.link,text:data.title} : undefined;
+      if (data.link) data.link = {...data.link,url:data.link.url || data.link.href || "",text:data.link.text || data.link.label || data.title};
+    }
     if (["skills","timeline","anime"].includes(domain)) data.description = note.body.trim() || data.description || "";
     if (domain === "media") data.description ??= note.body.trim();
     if (domain === "media") { data.creator ??= data.director || data.author; if (data.year !== undefined) data.year=String(data.year); }
@@ -317,9 +330,11 @@ function safe(root, path) {
 	return resolved;
 }
 function cleanData(r) {
-	return Object.fromEntries(
+	const result = Object.fromEntries(
 		Object.entries(r.data).filter(([k]) => !metadata.has(k) && (k in (domains[r.domain]?.fields || {})) && (k !== "password" || r.domain === "albums")),
 	);
+	if (result.date && domains[r.domain]?.fields?.date?.[1] === "date") result.date = displayTime(result.date);
+	return result;
 }
 export function compileVault({
 	sourceRoot,
@@ -476,7 +491,7 @@ export function compileVault({
     const id = r.domain === "pages" ? r.data.key : r.data.alias;
     if (!/^[\p{L}\p{N}_./-]+$/u.test(String(id)) || String(id).split("/").includes("..")) throw new Error("Invalid public note slug");
     if (r.domain === "pages" && !["about","friends"].includes(id)) throw new Error("Unsupported special page");
-    const fields = new Set([...Object.keys(domains[r.domain]?.fields || {}),"title","order","updated","updatedAt"]);
+    const fields = new Set([...Object.keys(domains[r.domain]?.fields || {}),"title","order","updated","updatedAt","displayDate"]);
     const data = mapAssets(Object.fromEntries(Object.entries(r.data).filter(([key])=>fields.has(key))),r.path);
     output(`src/content/${collection}/${id}.md`, noteText(data,wiki(r.body,r.path)));
   }

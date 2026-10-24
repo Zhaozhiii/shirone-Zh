@@ -8,7 +8,7 @@ import Card from "@components/atoms/display/Card.svelte";
 import I18nKey from "@i18n/i18nKey";
 import { i18n } from "@i18n/translation";
 import { getSortedPosts } from "@utils/content-utils";
-import { formatDateToYYYYMMDD } from "@utils/date-utils";
+import { publicationDateLabel } from "@utils/date-utils";
 import { getPostUrl, url } from "@utils/url-utils";
 import { Icon } from "astro-icon/components";
 import { siteConfig } from "@/config";
@@ -144,9 +144,9 @@ const posts = allPosts.slice(0, 6);
 								{post.data.category}
 							</span>
 						)}
-						<time datetime={new Date(post.data.published).toISOString()}>
-							{formatDateToYYYYMMDD(post.data.published)}
-						</time>
+						{publicationDateLabel(post.data) && <time datetime={new Date(post.data.published).toISOString()}>
+							{publicationDateLabel(post.data)}
+						</time>}
 					</div>
 				</a>
 			))}

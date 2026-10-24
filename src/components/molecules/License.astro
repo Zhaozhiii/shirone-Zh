@@ -9,6 +9,7 @@ interface Props {
 	title: string;
 	slug: string;
 	pubDate: Date;
+	displayDate?: string;
 	class: string;
 }
 
@@ -38,10 +39,10 @@ const postUrl = decodeURIComponent(
             <div class="transition text-[var(--on-surface-variant)] text-sm">{i18n(I18nKey.author)}</div>
             <div class="transition text-[var(--on-surface)] line-clamp-2">{profileConf.name}</div>
         </div>
-        <div>
+        {(Astro.props.displayDate ?? true) && <div>
             <div class="transition text-[var(--on-surface-variant)] text-sm">{i18n(I18nKey.publishedAt)}</div>
-            <div class="transition text-[var(--on-surface)] line-clamp-2">{formatDateToYYYYMMDD(pubDate)}</div>
-        </div>
+            <div class="transition text-[var(--on-surface)] line-clamp-2">{Astro.props.displayDate ?? formatDateToYYYYMMDD(pubDate)}</div>
+        </div>}
         <div>
             <div class="transition text-[var(--on-surface-variant)] text-sm">{i18n(I18nKey.license)}</div>
             <a href={licenseConf.url} target="_blank" class="link text-[var(--primary)] line-clamp-2">{licenseConf.name}</a>

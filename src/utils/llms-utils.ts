@@ -212,9 +212,14 @@ export function generateLlmsFullTxt(
 	for (let i = 0; i < posts.length; i++) {
 		const post = posts[i];
 		const postUrl = toAbsoluteUrl(getPostUrl(post), baseUrl);
-		const pubDate = post.data.published
-			? new Intl.DateTimeFormat("en-CA").format(new Date(post.data.published))
-			: "";
+		const pubDate =
+			post.data.displayDate !== undefined
+				? post.data.displayDate
+				: post.data.published
+					? new Intl.DateTimeFormat("en-CA").format(
+							new Date(post.data.published),
+						)
+					: "";
 
 		output += "---\n\n";
 		output += `## ${post.data.title}\n\n`;

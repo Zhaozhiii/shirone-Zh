@@ -28,6 +28,7 @@ interface Post {
 		tags: string[];
 		category: string | null;
 		published: Date;
+		displayDate?: string;
 	};
 }
 
@@ -127,7 +128,7 @@ function toItem(post: Post): ArchiveItem {
 	return {
 		title: post.data.title,
 		href: post.url ?? getPostUrlBySlug(post.slug),
-		date: formatDate(post.data.published),
+		date: post.data.displayDate ?? formatDate(post.data.published),
 		category: post.data.category ? categoryName(post.data.category) : undefined,
 		tags: post.data.tags.map(tagName),
 	};
@@ -161,7 +162,12 @@ const groups = $derived.by((): ArchiveGroup[] => {
 		}
 	} else {
 		for (const p of filtered) {
-			add(formatCalendarDate(p.data.published).slice(0, 4), toItem(p));
+			add(
+				p.data.displayDate === ""
+					? i18n(I18nKey.uncategorized)
+					: formatCalendarDate(p.data.published).slice(0, 4),
+				toItem(p),
+			);
 		}
 	}
 	const list = [...buckets.entries()].map(([id, items]) => ({

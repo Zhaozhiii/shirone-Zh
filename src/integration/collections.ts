@@ -46,6 +46,7 @@ const postSchemaObject = z.object({
 	alias: z.string().optional(),
 	permalink: z.string().optional(),
 	title: z.string(),
+	displayDate: z.string().optional(),
 	published: z.date(),
 	publishedAt: z.date().optional(),
 	updated: z.date().optional(),
@@ -79,6 +80,7 @@ const postSchema: typeof postSchemaObject = postSchemaObject;
 /** Schema for the short-form "moments" timeline. */
 const momentSchemaObject = z.object({
 	order: z.number().optional(),
+	displayDate: z.string().optional(),
 	published: z.date(),
 	pinned: z.boolean().optional().default(false),
 	location: z.string().optional().default(""),

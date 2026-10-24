@@ -3,7 +3,7 @@ import ArticleDiscoveryItem from "@components/molecules/ArticleDiscoveryItem.ast
 import I18nKey from "@i18n/i18nKey";
 import { i18n } from "@i18n/translation";
 import type { PostForList } from "@utils/content-utils";
-import { formatDateToYYYYMMDD } from "@utils/date-utils";
+import { publicationDateLabel } from "@utils/date-utils";
 import { getPostUrlBySlug } from "@utils/url-utils";
 import { Icon } from "astro-icon/components";
 
@@ -43,7 +43,7 @@ const hasRandom = random.length > 0;
 							<ArticleDiscoveryItem
 								href={article.url ?? getPostUrlBySlug(article.slug)}
 								title={article.data.title}
-								published={formatDateToYYYYMMDD(article.data.published)}
+								published={publicationDateLabel(article.data)}
 								category={article.data.category}
 								lane="related"
 							/>
@@ -66,7 +66,7 @@ const hasRandom = random.length > 0;
 							<ArticleDiscoveryItem
 								href={article.url ?? getPostUrlBySlug(article.slug)}
 								title={article.data.title}
-								published={formatDateToYYYYMMDD(article.data.published)}
+								published={publicationDateLabel(article.data)}
 								category={article.data.category}
 								lane="random"
 							/>

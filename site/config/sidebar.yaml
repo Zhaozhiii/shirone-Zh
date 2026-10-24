@@ -1,0 +1,79 @@
+components:
+  - type: profile
+    enable: true
+    slot: top
+  - type: music
+    enable: true
+    slot: top
+  - type: announcement
+    enable: true
+    slot: top
+    pages:
+      - home
+  - type: categories
+    enable: true
+    slot: sticky
+    collapseAfter: 5
+    pages:
+      - home
+      - archive
+      - friends
+      - moments
+      - anime
+      - compass
+      - skills
+      - projects
+      - devices
+      - timeline
+      - albums
+      - about
+      - post
+      - categories
+      - tags
+  - type: tags
+    enable: true
+    slot: sticky
+    collapseAfter: 6
+    pages:
+      - home
+      - archive
+      - friends
+      - moments
+      - anime
+      - compass
+      - skills
+      - projects
+      - devices
+      - timeline
+      - albums
+      - about
+      - post
+      - categories
+      - tags
+  - type: stats
+    enable: true
+    slot: top
+    column: secondary
+    pages:
+      - home
+      - archive
+      - categories
+      - tags
+  - type: moments
+    enable: true
+    slot: top
+    column: secondary
+    limit: 3
+  - type: siteInfo
+    enable: true
+    slot: top
+    column: secondary
+  - type: toc
+    enable: true
+    slot: sticky
+    column: secondary
+    pages:
+      - post
+  - type: advertisement
+    enable: false
+    slot: sticky

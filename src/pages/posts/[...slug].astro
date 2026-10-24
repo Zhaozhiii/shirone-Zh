@@ -22,7 +22,7 @@ import { discoverArticles } from "@utils/article-discovery";
 import { resolveAsset } from "@utils/asset-utils";
 import { getPublishedInstant, getUpdatedInstant } from "@utils/content-date";
 import { getSortedPosts, type PostForList } from "@utils/content-utils";
-import { formatDateToYYYYMMDD } from "@utils/date-utils";
+import { formatDateToYYYYMMDD, publicationDateLabel } from "@utils/date-utils";
 import { getMarkdownStylesheetAssets } from "@utils/markdown-assets";
 import { getSourceMarkdownSyntaxSnapshot } from "@utils/markdown-source-syntaxes.mjs";
 import {
@@ -167,12 +167,18 @@ const jsonLd = {
 		name: profileConfig.name,
 		url: Astro.site,
 	},
-	datePublished: entry.data.publishedAt
-		? publishedInstant.toISOString()
-		: formatDateToYYYYMMDD(entry.data.published),
-	dateModified: entry.data.updatedAt
-		? updatedInstant.toISOString()
-		: formatDateToYYYYMMDD(effectiveUpdatedDate),
+	datePublished:
+		entry.data.displayDate === ""
+			? undefined
+			: entry.data.publishedAt
+				? publishedInstant.toISOString()
+				: formatDateToYYYYMMDD(entry.data.published),
+	dateModified:
+		entry.data.displayDate === ""
+			? undefined
+			: entry.data.updatedAt
+				? updatedInstant.toISOString()
+				: formatDateToYYYYMMDD(effectiveUpdatedDate),
 	inLanguage: entry.data.lang
 		? entry.data.lang.replace("_", "-")
 		: siteConfig.lang.replace("_", "-"),
@@ -184,7 +190,7 @@ const randomCoverOptions = entry.data.image
 	: resolveRandomCoverOptions(randomCoverConfig);
 ---
 
-<MainGridLayout banner={entry.data.image} title={entry.data.title} description={effectiveDescription} bannerDate={formatDateToYYYYMMDD(entry.data.published)} lang={entry.data.lang} setOGTypeArticle={true} headings={effectiveHeadings} postCategory={entry.data.category || undefined} page="post" hasComments={postCommentEnabled}>
+<MainGridLayout banner={entry.data.image} title={entry.data.title} description={effectiveDescription} bannerDate={publicationDateLabel(entry.data)} lang={entry.data.lang} setOGTypeArticle={true} headings={effectiveHeadings} postCategory={entry.data.category || undefined} page="post" hasComments={postCommentEnabled}>
     {hasMath && <link slot="head" rel="stylesheet" data-swup-optional="math" href={katexStylesheet} />}
     {hasMath && <link slot="head" rel="stylesheet" data-swup-optional="math" href={overlayScrollbarsStylesheet} />}
     {markdownStylesheetAssets.map(({ pack, css }) => <style is:inline slot="head" data-swup-optional={pack} set:html={css}></style>)}
@@ -248,6 +254,7 @@ const randomCoverOptions = entry.data.image
 					<PostMetadata
 						class="mb-5"
 						published={entry.data.published}
+                        displayDate={entry.data.displayDate}
 						updated={entry.data.updated}
 						tags={entry.data.tags}
 						category={entry.data.category}
@@ -306,7 +313,7 @@ const randomCoverOptions = entry.data.image
                 </Markdown>
             )}
 
-			{licenseConfig.enable && <License title={entry.data.title} slug={entry.id} pubDate={entry.data.published} class="mb-6 rounded-xl license-container onload-animation"></License>}
+			{licenseConfig.enable && <License title={entry.data.title} slug={entry.id} pubDate={entry.data.published} displayDate={entry.data.displayDate} class="mb-6 rounded-xl license-container onload-animation"></License>}
 
 			{shareOptions && (
 				<ArticleShare
@@ -315,7 +322,7 @@ const randomCoverOptions = entry.data.image
 					title={entry.data.title}
 					description={effectiveDescription}
 					author={profileConfig.name}
-					published={formatDateToYYYYMMDD(entry.data.published)}
+					published={publicationDateLabel(entry.data)}
 					siteTitle={siteConfig.title}
 					postPath={canonicalPostUrl}
 					coverSelector={entry.data.image ? "#post-cover img" : undefined}
@@ -344,7 +351,7 @@ const randomCoverOptions = entry.data.image
         class="onload-animation"
     />
 
-    {lastUpdatedNotice && (
+    {lastUpdatedNotice && entry.data.displayDate === undefined && (
         <LastUpdatedNotice
             date={updatedInstant}
             minimumAgeDays={lastUpdatedNotice.minimumAgeDays}

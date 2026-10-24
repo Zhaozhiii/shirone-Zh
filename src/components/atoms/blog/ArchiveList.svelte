@@ -115,7 +115,7 @@ function toggleGroup(id: string) {
 					{#each g.items as it (it.href)}
 						<li>
 							<a class="m3-blog-archive__item" href={it.href} aria-label={it.title}>
-								<span class="m3-blog-archive__date">{it.date}</span>
+								{#if it.date}<span class="m3-blog-archive__date">{it.date}</span>{/if}
 								<span class="m3-blog-archive__node" aria-hidden="true"></span>
 								<span class="m3-blog-archive__title">
 									{#if it.category}
@@ -251,7 +251,9 @@ function toggleGroup(id: string) {
 
 	&__date
 		flex-shrink: 0
-		width: 4rem
+		min-width: 4rem
+		max-width: 20ch
+		white-space: nowrap
 		font: var(--m3e-type-body-small)
 		color: var(--on-surface-variant)
 

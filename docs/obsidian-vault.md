@@ -11,14 +11,14 @@ Properties 默认隐藏，需要时通过 Obsidian 原生命令显示文件属�
 
 | type | 网站内容 | 常用属性 |
 | --- | --- | --- |
-| article | 博客文章 | title、slug、published、category、tags、series、cover |
-| moment | 动态 | published、location、mood、images |
+| article | 博客文章 | title、slug、date（可选）、category、tags、series、cover |
+| moment | 动态 | date（默认填写，可删除）、location、mood、images |
 | movie / book | 影视书籍与 Markdown 详情 | title、creator、cover、rating、status |
 | device | 设备 | name、brand、category、specs、image、order |
 | link | 网址导航，每网址一份笔记 | title、url、group、icon、cover、order |
 | friend | 友链 | title、url、cover、tags |
 | project | 项目 | title、phase、technologies、cover、website、repository |
-| announcement | 公告 | title、publishAt、unpublishAt；正文即公告 |
+| announcement | 公告 | 默认 title、date、link；可选 publishAt、unpublishAt；正文即公告 |
 | album | 相册 | key（支持中文）、cover、passwordSecret；正文直接插入图片 |
 | category / tag / series | 可选分类、标签、系列描述 | key、name/title、parent |
 | skill / timeline / anime | 原有数据页 | 使用迁移笔记中的原有属性 |
@@ -26,10 +26,11 @@ Properties 默认隐藏，需要时通过 Obsidian 原生命令显示文件属�
 
 分类、标签和系列可以直接填写文章属性，不必建立定义笔记。
 设备、项目、友链等正文是网站介绍的单一编辑来源；迁移时去除重复属性。模板和使用说明已从默认关系图谱过滤。
-标题默认文件名；日期优先 `published`、`publishAt`、`created`，否则用 Git 首次创建时间。
-模板自动填写日期。
+标题默认文件名。显示日期统一使用 `date`；留空或省略时，文章、动态及公告不显示日期。日期或完整时间都可填写，时间显示到秒。
+博客模板不带日期，动态模板自动填写日期和时间；公告模板默认带空 `date`、`link`。日记模板和每日笔记插件已停用。
 `title` 只负责显示标题，`slug` 负责文章网址；两者可以一起改，修改 `slug` 会更换网址，旧网址不自动跳转。
-时间支持 `2026.10.20 03:13:15`、`2026.10.20 3:13:15`、`2026.1.2 3:4:5` 和原 ISO 格式，省略时区默认东八区。动态模板填写点号日期和完整时分秒。文章 `published` 如果填写完整时间，编译器自动拆出归档日期和 `publishedAt`；显式填写的 `publishedAt` 优先。原笔记不改写。
+时间支持 `2026.10.20 03:13:15`、`2026.10.20 3:13:15`、`2026.1.2 3:4:5` 和原 ISO 格式，省略时区默认东八区。显示日期与发布窗口互不替代，`publishAt` / `unpublishAt` 仅控制公开和撤下。
+转换器在生成物中保留内部排序日期和 `displayDate` 标签，未填写日期时标签为空。npm/普通主题的既有日期接口保持兼容；原 Vault 的 published/publishedAt/updated/updatedAt 已迁移为 date，原头部备份留在本地 `.tools/date-unification-backup-20261024/`。
 只写 `3:13:15` 时，发布日期以笔记 `created` 或 Git 首次创建日期补齐；新笔记以本地文件创建日期兜底。预约等字段的纯时间优先使用已填写的发布日期，再用创建日期，避免随 CI 重建日期漂移。实现位于 `tools/vault/time.mjs`，日历及钟点范围严格校验。
 迁移内容保留原有固定标识、排序、可见状态和日期。
 
