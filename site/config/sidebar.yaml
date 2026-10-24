@@ -50,6 +50,11 @@ components:
       - post
       - categories
       - tags
+  - type: moments
+    enable: true
+    slot: top
+    column: secondary
+    limit: 3
   - type: stats
     enable: true
     slot: top
@@ -59,11 +64,6 @@ components:
       - archive
       - categories
       - tags
-  - type: moments
-    enable: true
-    slot: top
-    column: secondary
-    limit: 3
   - type: siteInfo
     enable: true
     slot: top
