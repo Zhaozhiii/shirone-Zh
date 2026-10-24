@@ -2,6 +2,19 @@ import Key from "../i18nKey-runtime.mjs";
 import type { Translation } from "../translation.ts";
 
 export const vi: Translation = {
+	[Key.mdTask]: "Công việc",
+	[Key.mdReferenceUnpublished]: "Chưa xuất bản",
+	[Key.mdReferenceMissing]: "Tham chiếu không hợp lệ",
+	[Key.mdReferenceAmbiguous]: "Tham chiếu không rõ ràng",
+	[Key.mdReferenceUnavailable]: "Không thể truy cập tham chiếu",
+	[Key.mdEmbedProtected]: "Nội dung được bảo vệ. Vui lòng mở trang gốc.",
+	[Key.mdEmbedLimit]: "Không thể mở rộng thêm",
+	[Key.mdEmbedUnpublished]: "Chưa công khai",
+	[Key.mdEmbedMissing]: "Nội dung được tham chiếu không tồn tại",
+	[Key.mdEmbedAmbiguous]: "Không thể xác định nội dung tham chiếu",
+	[Key.mdReferenceOpen]: "Mở trang gốc",
+	[Key.mdBacklinks]: "Liên kết ngược",
+
 	[Key.media]: "Phim và sách",
 	[Key.mediaDescription]:
 		"Những bộ phim tôi đã xem và những cuốn sách tôi đã đọc.",

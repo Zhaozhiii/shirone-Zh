@@ -5,7 +5,6 @@ import { tmpdir } from "node:os";
 import { join, dirname } from "node:path";
 import { compileVault, noteText, readRecords, visible, instant, files } from "../../tools/vault/core.mjs";
 import { verifyPrivateOutput } from "../../tools/vault/verify-dist.mjs";
-import { migrate } from "../../tools/vault/migrate.mjs";
 import { parse } from "yaml";
 
 function fixture(t) {
@@ -85,8 +84,8 @@ test("wiki links resolve public notes and never transclude private Markdown",t=>
   note("学习/A.md",{type:"article",publish:true,slug:"a"},"[[B|下一篇]] [[私人|补充笔记]]");
   note("学习/B.md",{type:"article",publish:true,slug:"b"},"B");build();
   const text=readFileSync(join(root,"src/content/posts/a.md"),"utf8");
-  assert.match(text,/\[下一篇\]\(\/posts\/b\/\)/);assert.match(text,/补充笔记/);assert.doesNotMatch(text,/PRIVATE_BODY|私人\.md/);
-  note("学习/A.md",{type:"article",publish:true,slug:"a"},"![[私人.md]]");assert.throws(build);
+  assert.match(text,/\[\[B\|下一篇\]\]/);assert.match(text,/补充笔记/);assert.doesNotMatch(text,/PRIVATE_BODY|私人\.md/);
+  note("学习/A.md",{type:"article",publish:true,slug:"a"},"![[私人.md]]");assert.doesNotThrow(build); assert.doesNotMatch(readFileSync(join(root,".vault-cache/markdown-index.json"),"utf8"),/PRIVATE_BODY/);
 });
 test("withdrawal and file deletion remove old pages, adapters and exclusive assets",t=>{
   const {source,root,write,note,build}=fixture(t);
@@ -186,18 +185,18 @@ test("moving and retitling a note preserves its explicit slug; duplicates fail",
   assert.match(readFileSync(join(root,"src/content/posts/stable.md"),"utf8"),/title: New/);
   note("duplicate.md",{type:"article",publish:true,slug:"stable"},"Duplicate");assert.throws(build,/Duplicate|重复/);
 });
-test("missing and ambiguous attachments fail closed before changing existing output",t=>{
+test("missing and ambiguous attachments invalidate only the reference",t=>{
   const {root,write,note,build}=fixture(t);
   note("a.md",{type:"article",publish:true,slug:"a"},"Valid content");build();
-  note("a.md",{type:"article",publish:true,slug:"a"},"![[missing.png]]");assert.throws(build,/missing|ambiguous/);
-  assert.match(readFileSync(join(root,"src/content/posts/a.md"),"utf8"),/Valid content/);
-  write("one/a.png","a");write("two/a.png","b");note("a.md",{type:"article",publish:true,slug:"a"},"![[a.png]]");assert.throws(build,/ambiguous/);
+  note("a.md",{type:"article",publish:true,slug:"a"},"![[missing.png]]");assert.doesNotThrow(build);
+  assert.match(readFileSync(join(root,"src/content/posts/a.md"),"utf8"),/missing.png/);
+  write("one/a.png","a");write("two/a.png","b");note("a.md",{type:"article",publish:true,slug:"a"},"![[a.png]]");assert.doesNotThrow(build);
 });
 test("non-note resources cannot escape the Vault or copy Markdown as attachments",t=>{
-  const {note,write,build}=fixture(t);
+  const {root,note,write,build}=fixture(t);
   write("private.md","PRIVATE_BODY");
   for(const body of ["![[private.md]]","![x](../outside.png)","@include: ../../private.md","@[code-tree](../notes)",'::code-tree{dir="src/content/posts"}',':::code-tree{dir="src/content/posts"}\n:::']) {
-    note("a.md",{type:"article",publish:true,slug:"a"},body);assert.throws(build);
+    note("a.md",{type:"article",publish:true,slug:"a"},body);const result=build();assert.equal(result.assetOutputs.size,0); assert.doesNotMatch(readFileSync(join(root,".vault-cache/markdown-index.json"),"utf8"),/PRIVATE_BODY/);
   }
 });
 test("templates never publish and a dry-run leaves both Vault and build inputs intact",t=>{
@@ -244,21 +243,6 @@ test("invalid private YAML remains private without blocking unrelated publicatio
 test("an empty public Vault retains directory contracts used by theme tooling",t=>{
   const {root,build}=fixture(t);build();
   for(const path of ["public/images/albums","public/images/vault","src/content/posts","src/content/moments","src/content/spec"]) assert.ok(existsSync(join(root,path)));
-});
-
-test("legacy migration preserves relative article images and splits navigation groups without copying unused assets",t=>{
-  const {source,root,write}=fixture(t),vault=join(root,"../migrated");
-  write("content/posts/original/index.md",noteText({title:"Original",published:"2026-10-24",draft:false},"![图](./image.png)"));
-  write("content/posts/original/image.png","IMAGE_BYTES");write("public/unused.mp3","UNUSED_AUDIO");
-  write("assets/images/avatar.png","BRANDING_BYTES");write("config/profile.yaml","avatar: assets/images/avatar.png\n");
-  write("cms/compass/links.md",noteText({name:"Research",key:"research",entries:[{label:"Example",href:"https://example.com"}]}));
-  mkdirSync(vault);migrate(source,vault,root);
-  assert.equal(files(vault).filter(p=>p.endsWith(".mp3")).length,0);
-  assert.equal(files(join(root,"site/assets/images")).length,1);
-  compileVault({sourceRoot:vault,root});
-  assert.match(readFileSync(join(root,"src/content/posts/original.md"),"utf8"),/\/images\/vault\/[a-f0-9]+\.png/);
-  assert.match(readFileSync(join(root,"src/data/compass.ts"),"utf8"),/Research/);
-  assert.throws(()=>migrate(source,vault,root),/empty Vault/);
 });
 
 test("native prose edits update website cards even when an old description property remains",t=>{

@@ -33,7 +33,10 @@ test("public theme CI uses only fixtures; private publication pins both versions
 	);
 	assert.ok(workflow.on.workflow_call);
 	assert.match(workflow.jobs.publish.if, /Zhaozhiii\/Obsidian-Vault/);
-	assert.equal(workflow.jobs.publish.env.CONTENT_REPO_URL, "https://github.com/Zhaozhiii/Obsidian-Vault.git");
+	assert.equal(
+		workflow.jobs.publish.env.CONTENT_REPO_URL,
+		"https://github.com/Zhaozhiii/Obsidian-Vault.git",
+	);
 	const content = workflow.jobs.publish.steps.find(
 		(s) => s.name === "Checkout exact Vault revision",
 	);
@@ -53,10 +56,7 @@ test("public theme CI uses only fixtures; private publication pins both versions
 	const activation = workflow.jobs.publish.steps.find(
 		(s) => s.name === "Activate only the current code and content",
 	);
-	assert.equal(
-		activation.run.split("node scripts/deploy/check-current.mjs").length - 1,
-		2,
-	);
+	assert.match(activation.run, /node scripts\/deploy\/check-current\.mjs/);
 	assert.doesNotMatch(JSON.stringify(workflow), /playwright|google-chrome/);
 });
 

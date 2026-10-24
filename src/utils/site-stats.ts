@@ -6,7 +6,7 @@
 import { render } from "astro:content";
 import {
 	getCategoryList,
-	getSortedMoments,
+	getMomentCount,
 	getSortedPosts,
 	getTagList,
 } from "./content-utils";
@@ -33,7 +33,7 @@ export async function getSiteStats(): Promise<SiteStats> {
 
 	const [posts, moments, categories, tags] = await Promise.all([
 		getSortedPosts(),
-		getSortedMoments(),
+		getMomentCount(),
 		getCategoryList(),
 		getTagList(),
 	]);
@@ -55,7 +55,7 @@ export async function getSiteStats(): Promise<SiteStats> {
 
 	cache = {
 		posts: posts.length,
-		moments: moments.length,
+		moments,
 		categories: categories.length,
 		tags: tags.length,
 		words,

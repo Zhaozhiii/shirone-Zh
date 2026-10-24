@@ -7,6 +7,8 @@
 
 已落地的作者语法以 `src/plugins/markdown/manifest.json` 为机器可读单一索引；字段含义、查询和维护流程见 [`markdown-syntax-manifest.md`](markdown-syntax-manifest.md)。未落地的研究能力不得提前登记。
 
+Obsidian 原生语义、双链、递归嵌入、引用失效、Properties 和 KaTeX 兼容边界见 [`obsidian-markdown.md`](obsidian-markdown.md)。视觉继续复用 Shirone；任何引用错误只局部失效，不阻止发布。
+
 ## 1. 处理链与所有权
 
 `src/utils/markdown-processor.mjs` 是站点 Markdown 插件链的单一事实来源。Astro 页面渲染与构建期离线渲染必须共用 `siteRemarkPlugins` 和 `siteRehypePlugins`，不得在第二处复制插件配置。

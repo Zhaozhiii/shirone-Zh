@@ -22,11 +22,11 @@ test("does not classify code handled by other Markdown syntaxes as Expressive Co
 	assert.deepEqual(
 		getSourceMarkdownSyntaxSnapshot("```mermaid\nflowchart LR\n  A --> B\n```")
 			.syntaxes,
-		[],
+		["mermaid"],
 	);
 	assert.deepEqual(
 		getSourceMarkdownSyntaxSnapshot("```file-tree\nsrc/\n```").syntaxes,
-		[],
+		["file-tree"],
 	);
 	assert.deepEqual(
 		getSourceMarkdownSyntaxSnapshot(
@@ -38,6 +38,6 @@ test("does not classify code handled by other Markdown syntaxes as Expressive Co
 				":::",
 			].join("\n"),
 		).syntaxes,
-		[],
+		["code-tree"],
 	);
 });

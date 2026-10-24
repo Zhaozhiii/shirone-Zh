@@ -13,7 +13,6 @@
 import { execFileSync } from "node:child_process";
 import { createHash } from "node:crypto";
 import {
-	copyFileSync,
 	existsSync,
 	mkdirSync,
 	readdirSync,
@@ -139,10 +138,14 @@ function assertSerializable(value, path, file, seen) {
 		return;
 	}
 	if (kind !== "object") {
-		fail(`${file}'s ${path} is of type ${kind} which cannot be represented as configuration.`);
+		fail(
+			`${file}'s ${path} is of type ${kind} which cannot be represented as configuration.`,
+		);
 	}
 	if (seen.has(value)) {
-		fail(`${file}'s ${path} forms a circular reference (YAML anchor points to itself).`);
+		fail(
+			`${file}'s ${path} forms a circular reference (YAML anchor points to itself).`,
+		);
 	}
 	seen.add(value);
 
@@ -164,28 +167,32 @@ function assertSerializable(value, path, file, seen) {
 }
 
 /** 读取并校验内容仓 `config/` 下的全部 YAML 覆盖。 */
-export function readConfigOverrides(configDirectory) {
-	if (!existsSync(configDirectory)) return [];
+export function readConfigOverrides(configDirectory, configFiles) {
+	if (!configFiles && !existsSync(configDirectory)) return [];
 
 	const entries = [];
 	const filesByDomain = new Map();
-	for (const entry of readdirSync(configDirectory, { withFileTypes: true })) {
-		if (!entry.isFile()) continue;
-		const extension = entry.name.slice(entry.name.lastIndexOf("."));
+	const names = configFiles
+		? [...configFiles.keys()]
+		: readdirSync(configDirectory, { withFileTypes: true })
+				.filter((entry) => entry.isFile())
+				.map((entry) => entry.name);
+	for (const name of names) {
+		const extension = name.slice(name.lastIndexOf("."));
 		if (!YAML_EXTENSIONS.has(extension)) continue;
 
-		const base = entry.name.slice(0, -extension.length);
+		const base = name.slice(0, -extension.length);
 		const domain = DOMAIN_BY_FILE[base];
 		if (!domain) {
 			const suggestion = suggestFile(base);
 			fail(
-				`Content repository ${CONFIG_DIRECTORY}/${entry.name} has no matching config domain.` +
+				`Content repository ${CONFIG_DIRECTORY}/${name} has no matching config domain.` +
 					(suggestion ? ` Did you mean ${suggestion}.yaml?` : "") +
 					` Available filenames: ${CONFIG_DOMAINS.map((item) => item.file).join(", ")}.`,
 			);
 		}
 
-		const relative = `${CONFIG_DIRECTORY}/${entry.name}`;
+		const relative = `${CONFIG_DIRECTORY}/${name}`;
 		const previous = filesByDomain.get(domain.key);
 		if (previous) {
 			fail(
@@ -198,7 +205,9 @@ export function readConfigOverrides(configDirectory) {
 		let value;
 		try {
 			value = parseYaml(
-				readFileSync(join(configDirectory, entry.name), "utf8"),
+				configFiles
+					? configFiles.get(name)
+					: readFileSync(join(configDirectory, name), "utf8"),
 			);
 		} catch (error) {
 			fail(`${relative} is not valid YAML: ${error.message}`);
@@ -392,7 +401,9 @@ const DIAGNOSTIC_PATTERN = /^(.+?)\((\d+),(\d+)\): error TS\d+: (.+)$/;
 export function typeCheckModule(root, lineOwners) {
 	const tsc = join(root, "node_modules", "typescript", "bin", "tsc");
 	if (!existsSync(tsc)) {
-		fail("Cannot find local typescript to check user config. Please run pnpm install first.");
+		fail(
+			"Cannot find local typescript to check user config. Please run pnpm install first.",
+		);
 	}
 
 	let output = "";
@@ -437,6 +448,7 @@ export function typeCheckModule(root, lineOwners) {
  * @param {boolean} [options.dryRun] 只校验不落盘
  * @param {(message: string) => void} [options.warn]
  * @param {string[]} [options.previousConfigFiles] 上一次 lock 记录的配置文件
+ * @param {Map<string, string>} [options.configFiles] 已规划的配置内容，供 Vault 预检和写入共用
  * @returns {{files: string[], changed: boolean}}
  */
 export function syncUserConfig({
@@ -445,9 +457,10 @@ export function syncUserConfig({
 	dryRun = false,
 	warn,
 	previousConfigFiles = [],
+	configFiles,
 }) {
 	const configDirectory = join(sourceRoot, CONFIG_DIRECTORY);
-	const entries = readConfigOverrides(configDirectory);
+	const entries = readConfigOverrides(configDirectory, configFiles);
 	const { source, lineOwners } = generateModule(entries);
 
 	const targetPath = join(root, GENERATED_CONFIG_FILE);
@@ -468,6 +481,7 @@ export function syncUserConfig({
 		mkdirSync(dirname(targetPath), { recursive: true });
 		writeAtomically(targetPath, source);
 	}
+	let succeeded = false;
 	try {
 		// 校验读的是磁盘上的文件，所以必须发生在落盘之后。
 		if (needsCheck) {
@@ -481,9 +495,10 @@ export function syncUserConfig({
 				);
 			}
 		}
+		succeeded = true;
 	} finally {
 		// dry-run 先写后还原，净效果仍是「校验了，但没改动仓库」。
-		if (dryRun && changed) {
+		if ((dryRun || !succeeded) && changed) {
 			if (existedBefore) writeAtomically(targetPath, current);
 			else rmSync(targetPath, { force: true });
 		}
@@ -494,15 +509,19 @@ export function syncUserConfig({
 	const footerSource = join(configDirectory, FOOTER_HTML_SOURCE);
 	const footerTarget = join(root, FOOTER_HTML_TARGET);
 	let footerChanged = false;
-	if (existsSync(footerSource)) {
-		const sourceBody = readFileSync(footerSource);
+	if (
+		configFiles ? configFiles.has(FOOTER_HTML_SOURCE) : existsSync(footerSource)
+	) {
+		const sourceBody = configFiles
+			? Buffer.from(configFiles.get(FOOTER_HTML_SOURCE))
+			: readFileSync(footerSource);
 		const targetBody = existsSync(footerTarget)
 			? readFileSync(footerTarget)
 			: null;
 		footerChanged = !targetBody?.equals(sourceBody);
 		if (!dryRun && footerChanged) {
 			mkdirSync(dirname(footerTarget), { recursive: true });
-			copyFileSync(footerSource, footerTarget);
+			writeFileSync(footerTarget, sourceBody);
 		}
 		files.push(`${CONFIG_DIRECTORY}/${FOOTER_HTML_SOURCE}`);
 	} else if (

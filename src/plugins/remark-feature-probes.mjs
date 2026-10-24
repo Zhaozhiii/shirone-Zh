@@ -25,6 +25,12 @@ export function remarkFeatureProbes() {
 		if (tree.data?.shironeIncludes) syntaxes.add("include");
 
 		visit(tree, (node, _index, parent) => {
+			if (
+				node.data?.hProperties?.className?.some((name) =>
+					name.startsWith("obsidian-"),
+				)
+			)
+				syntaxes.add("obsidian");
 			if (node.type === "math" || node.type === "inlineMath") {
 				syntaxes.add("math");
 			}

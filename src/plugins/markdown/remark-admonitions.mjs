@@ -1,7 +1,36 @@
 import { visit } from "unist-util-visit";
 
 const ADMONITION_TYPES = "note|info|tip|important|warning|caution|details";
-const GITHUB_ALERT = /^\s*\[!(NOTE|TIP|IMPORTANT|WARNING|CAUTION)\]\s*$/i;
+const GITHUB_ALERT = /^\s*\[!([a-z][\w-]*)\]([+-])?[ \t]*(.*)$/i;
+const CALLOUT_TYPES = {
+	note: "note",
+	abstract: "info",
+	summary: "info",
+	tldr: "info",
+	info: "info",
+	todo: "info",
+	tip: "tip",
+	hint: "tip",
+	important: "important",
+	success: "tip",
+	check: "tip",
+	done: "tip",
+	question: "warning",
+	help: "warning",
+	faq: "warning",
+	warning: "warning",
+	caution: "caution",
+	attention: "warning",
+	failure: "caution",
+	fail: "caution",
+	missing: "caution",
+	danger: "caution",
+	error: "caution",
+	bug: "caution",
+	example: "important",
+	quote: "note",
+	cite: "note",
+};
 const CONTAINER_OPENER = new RegExp(
 	`^([\\t ]{0,3})(:{3,})[\\t ]*(${ADMONITION_TYPES})(?![\\w-])(.*)$`,
 	"i",
@@ -63,6 +92,7 @@ export function rewriteAdmonitionContainers(source) {
 function normalizeGithubAlerts(tree) {
 	visit(tree, "blockquote", (node, index, parent) => {
 		if (typeof index !== "number" || !parent) return;
+		normalizeGithubAlerts({ type: "root", children: node.children });
 		const [firstParagraph, ...remainingBlocks] = node.children;
 		if (firstParagraph?.type !== "paragraph") return;
 		const [firstText, ...remainingInline] = firstParagraph.children;
@@ -72,10 +102,31 @@ function normalizeGithubAlerts(tree) {
 		const match = declaration.match(GITHUB_ALERT);
 		if (!match) return;
 
+		const rawType = match[1].toLowerCase();
+		const type = CALLOUT_TYPES[rawType] || "note";
+		let titleChildren = match[3] ? [{ type: "text", value: match[3] }] : [];
+		const bodyInline = [];
+		let inTitle = remainingLines.length === 0;
+		for (const child of remainingInline) {
+			if (inTitle && child.type === "text" && child.value.includes("\n")) {
+				const [line, ...rest] = child.value.split("\n");
+				if (line) titleChildren.push({ ...child, value: line });
+				if (rest.join("\n"))
+					bodyInline.push({ ...child, value: rest.join("\n") });
+				inTitle = false;
+			} else (inTitle ? titleChildren : bodyInline).push(child);
+		}
+		if (
+			!titleChildren.length &&
+			!["note", "tip", "important", "warning", "caution", "info"].includes(
+				rawType,
+			)
+		)
+			titleChildren = [{ type: "text", value: rawType.toUpperCase() }];
 		const firstLine = remainingLines.join("\n");
 		const paragraphChildren = [
 			...(firstLine ? [{ ...firstText, value: firstLine }] : []),
-			...remainingInline,
+			...bodyInline,
 		];
 		const alertChildren = [
 			...(paragraphChildren.length > 0
@@ -86,9 +137,23 @@ function normalizeGithubAlerts(tree) {
 
 		parent.children[index] = {
 			type: "containerDirective",
-			name: match[1].toLowerCase(),
-			attributes: {},
-			children: alertChildren,
+			name: type,
+			attributes: {
+				...(match[2] ? { fold: match[2] } : {}),
+				"callout-type": rawType,
+			},
+			children: [
+				...(titleChildren.length
+					? [
+							{
+								type: "paragraph",
+								data: { directiveLabel: true },
+								children: titleChildren,
+							},
+						]
+					: []),
+				...alertChildren,
+			],
 		};
 	});
 }

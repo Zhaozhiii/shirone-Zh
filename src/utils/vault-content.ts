@@ -40,18 +40,35 @@ export const vaultCategories: VaultCategory[] =
 export const vaultTags: { key: string; name: string }[] = data.tags;
 export const vaultSeries: VaultSeries[] = data.series;
 export const vaultMedia: VaultMedia[] = data.media as VaultMedia[];
+const categoriesByKey = new Map(
+	vaultCategories.map((item) => [item.key, item]),
+);
+const tagsByKey = new Map(vaultTags.map((item) => [item.key, item]));
+const categoryRanks = new Map(
+	vaultCategories.map((item, index) => [item.key, index]),
+);
+const tagRanks = new Map(vaultTags.map((item, index) => [item.key, index]));
+
+export function categoryRank(key: string): number {
+	return categoryRanks.get(key) ?? Number.MAX_SAFE_INTEGER;
+}
+export function tagRank(key: string): number {
+	return tagRanks.get(key) ?? Number.MAX_SAFE_INTEGER;
+}
 export function categoryName(key: string): string {
-	return vaultCategories.find((c) => c.key === key)?.name ?? key;
+	return categoriesByKey.get(key)?.name ?? key;
 }
 export function categoryAncestors(key: string): string[] {
 	const result: string[] = [];
-	let current = vaultCategories.find((c) => c.key === key);
-	while (current?.parent && !result.includes(current.parent)) {
+	const seen = new Set([key]);
+	let current = categoriesByKey.get(key);
+	while (current?.parent && !seen.has(current.parent)) {
 		result.push(current.parent);
-		current = vaultCategories.find((c) => c.key === current?.parent);
+		seen.add(current.parent);
+		current = categoriesByKey.get(current.parent);
 	}
 	return result;
 }
 export function tagName(key: string): string {
-	return vaultTags.find((t) => t.key === key)?.name ?? key;
+	return tagsByKey.get(key)?.name ?? key;
 }

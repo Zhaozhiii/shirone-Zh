@@ -17,9 +17,13 @@
 
 当前注册顺序如下。顺序编号是维护参考，不是可变 ID；修改顺序时必须同步更新本表及测试。
 
+Obsidian 兼容阶段先注册 `remarkObsidianSyntax` 的 tokenizer，再运行输入保护和既有 include。`remarkObsidian` 在其后、所有容器与行内转换之前运行：读取原始 AST，移除注释，建立标题和块 ID，解析引用并展开带来源上下文的嵌入。后续现有插件统一消费展开后的 AST，因此资源探针始终位于嵌入之后。源码预探测直接复用 `siteRemarkPlugins`，不另维护解析链。
+
 | 阶段 | 插件 | 顺序约束 | 责任 |
 | --- | --- | --- | --- |
+| Obsidian 词法 | `remarkObsidianSyntax` | 最先注册 | 扩展 Wiki、嵌入、注释、上下标、行内脚注及公式定界符，保留代码与转义边界 |
 | 输入保护 | `remarkEscapeNumericColons` | 最早执行 | 防止比例文本被 directive 解析器误判 |
+| 来源与引用 | `remarkObsidian` | include 之后；容器、数学、统计和探针之前 | 标题、块、引用解析与递归嵌入，局部失效、来源和 ID 隔离 |
 | 引用归一化 | `remarkContentAnnotations`、`remarkAbbreviations` | `remarkDirective` 之前 | 解析引用定义并生成后续可识别的语法节点 |
 | 容器归一化 | `remarkAdmonitions`、`remarkCollapsePanels`、`remarkOptionGroups` | `remarkDirective` 之前 | 将作者友好的容器写法改为标准 directive 形态 |
 | 行内归一化 | `remarkMarker` | `remarkDirective` 之前 | 将标记语法改为 text directive |
@@ -47,13 +51,14 @@
 
 | 阶段 | 插件 | 顺序约束 | 责任 |
 | --- | --- | --- | --- |
-| 数学输出 | `rehypeKatex` | 组件渲染之前 | 将数学节点输出为 KaTeX HTML |
+| 数学输出 | `rehypeDocumentKatex` | 组件渲染之前 | 复用 rehype-katex，每文档隔离宏，公式失败记录诊断 |
 | 标题 ID | `rehypeSlug` | `rehypeAutolinkHeadings` 之前 | 先建立稳定标题 ID |
 | 容器预处理 | `rehypeCollapseGroups`、`rehypeOptionGroupIds` | 对应组件渲染之前 | 为折叠组和选项组写入稳定属性 |
 | 组件渲染 | `rehypeComponents` | 图片和表格后处理之前 | 将 directive AST 渲染为稳定组件 DOM |
 | 标题链接 | `rehypeAutolinkHeadings` | `rehypeSlug` 之后 | 根据已存在的标题 ID 添加锚点 |
 | 图片增强 | `rehypeMarkdownImages` | `rehypeComponents` 之后 | 增强普通图片并跳过已渲染组件内部图片 |
 | 表格包装 | `rehypeResponsiveTables` | Rehype 最后 | 为最终 HTML 中的表格添加滚动容器 |
+| 局部可访问性 | `rehypeObsidian` | 组件、图片及表格之后 | 只补充显式图片尺寸和任务框可访问名称，不改写既有图片样式 |
 
 ### 3.1 Rehype 禁止事项
 

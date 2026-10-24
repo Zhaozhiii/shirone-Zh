@@ -2,6 +2,19 @@ import Key from "../i18nKey-runtime.mjs";
 import type { Translation } from "../translation.ts";
 
 export const th: Translation = {
+	[Key.mdTask]: "งาน",
+	[Key.mdReferenceUnpublished]: "ยังไม่เผยแพร่",
+	[Key.mdReferenceMissing]: "การอ้างอิงไม่ถูกต้อง",
+	[Key.mdReferenceAmbiguous]: "การอ้างอิงไม่ชัดเจน",
+	[Key.mdReferenceUnavailable]: "ไม่สามารถใช้งานการอ้างอิง",
+	[Key.mdEmbedProtected]: "เนื้อหาที่มีการป้องกัน โปรดเปิดต้นฉบับ",
+	[Key.mdEmbedLimit]: "ไม่สามารถขยายต่อได้",
+	[Key.mdEmbedUnpublished]: "ยังไม่เปิดเผยต่อสาธารณะ",
+	[Key.mdEmbedMissing]: "ไม่มีเนื้อหาที่อ้างอิง",
+	[Key.mdEmbedAmbiguous]: "ไม่สามารถระบุเนื้อหาที่อ้างอิง",
+	[Key.mdReferenceOpen]: "เปิดต้นฉบับ",
+	[Key.mdBacklinks]: "ลิงก์ย้อนกลับ",
+
 	[Key.media]: "ภาพยนตร์และหนังสือ",
 	[Key.mediaDescription]: "ภาพยนตร์ที่ดูและหนังสือที่อ่าน",
 	[Key.mediaEmpty]: "ยังไม่มีภาพยนตร์หรือหนังสือ",

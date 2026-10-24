@@ -1,10 +1,9 @@
-// biome-ignore lint/suspicious/noShadowRestrictedNames: <toString from mdast-util-to-string>
-import { toString } from "mdast-util-to-string";
 import getReadingTime from "reading-time";
+import { visibleText } from "./markdown/core/visible-text.mjs";
 
 export function remarkReadingTime() {
 	return (tree, { data }) => {
-		const textOnPage = toString(tree);
+		const textOnPage = visibleText(tree);
 		const readingTime = getReadingTime(textOnPage);
 		data.astro.frontmatter.minutes = Math.max(
 			1,

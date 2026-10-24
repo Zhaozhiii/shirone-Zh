@@ -3,6 +3,12 @@
 export interface SiteMarkdownRenderResult {
 	code: string;
 	metadata: Record<string, unknown>;
+	diagnostics: {
+		code: string;
+		source: string;
+		line?: number;
+		column?: number;
+	}[];
 }
 
 export interface SiteMarkdownRenderer {
@@ -11,6 +17,13 @@ export interface SiteMarkdownRenderer {
 		renderOpts?: {
 			fileURL?: URL;
 			frontmatter?: Record<string, unknown>;
+			context?: {
+				current?: string;
+				namespace?: string;
+				index?: unknown;
+				target?: "web" | "feed";
+				backlinks?: Record<string, { title: string; url: string }[]>;
+			};
 		},
 	): Promise<SiteMarkdownRenderResult>;
 }
@@ -25,3 +38,8 @@ export declare const siteMarkdownProcessor: {
 		shared?: Record<string, unknown>,
 	): Promise<SiteMarkdownRenderer>;
 };
+
+export declare function createSiteMarkdownProcessor(options?: {
+	root?: string;
+	contentRoot?: string;
+}): typeof siteMarkdownProcessor;

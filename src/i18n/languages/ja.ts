@@ -2,6 +2,19 @@ import Key from "../i18nKey-runtime.mjs";
 import type { Translation } from "../translation.ts";
 
 export const ja: Translation = {
+	[Key.mdTask]: "タスク",
+	[Key.mdReferenceUnpublished]: "未公開",
+	[Key.mdReferenceMissing]: "参照が無効です",
+	[Key.mdReferenceAmbiguous]: "参照が曖昧です",
+	[Key.mdReferenceUnavailable]: "参照できません",
+	[Key.mdEmbedProtected]: "保護された内容です。元のページで確認してください。",
+	[Key.mdEmbedLimit]: "これ以上展開できません",
+	[Key.mdEmbedUnpublished]: "まだ公開されていません",
+	[Key.mdEmbedMissing]: "参照先が存在しません",
+	[Key.mdEmbedAmbiguous]: "参照先を特定できません",
+	[Key.mdReferenceOpen]: "元のページを開く",
+	[Key.mdBacklinks]: "バックリンク",
+
 	[Key.media]: "映画と本",
 	[Key.mediaDescription]: "観た映画と読んだ本。",
 	[Key.mediaEmpty]: "映画や本はまだありません。",

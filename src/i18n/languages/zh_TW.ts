@@ -2,6 +2,19 @@ import Key from "../i18nKey-runtime.mjs";
 import type { Translation } from "../translation.ts";
 
 export const zh_TW: Translation = {
+	[Key.mdTask]: "任務",
+	[Key.mdReferenceUnpublished]: "未發佈",
+	[Key.mdReferenceMissing]: "引用失效",
+	[Key.mdReferenceAmbiguous]: "引用不明確",
+	[Key.mdReferenceUnavailable]: "引用無法使用",
+	[Key.mdEmbedProtected]: "受保護內容，請前往原文查看",
+	[Key.mdEmbedLimit]: "無法繼續展開",
+	[Key.mdEmbedUnpublished]: "暫未公開",
+	[Key.mdEmbedMissing]: "引用內容不存在",
+	[Key.mdEmbedAmbiguous]: "無法確定引用內容",
+	[Key.mdReferenceOpen]: "查看原文",
+	[Key.mdBacklinks]: "反向連結",
+
 	[Key.media]: "電影書籍",
 	[Key.mediaDescription]: "看過的電影與讀過的書。",
 	[Key.mediaEmpty]: "暫無電影與書籍，待續。",

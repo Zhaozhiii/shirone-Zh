@@ -1,7 +1,6 @@
 import { unified } from "@astrojs/markdown-remark";
 import rehypeAutolinkHeadings from "rehype-autolink-headings";
 import rehypeComponents from "rehype-components"; /* Render the custom directive content */
-import rehypeKatex from "rehype-katex";
 import rehypeSlug from "rehype-slug";
 import remarkDirective from "remark-directive"; /* Handle directives */
 import remarkMath from "remark-math";
@@ -25,6 +24,11 @@ import {
 	rehypeOptionGroupIds,
 } from "../plugins/markdown/containers/rehype-option-groups.mjs";
 import { StepsComponent } from "../plugins/markdown/containers/rehype-steps.mjs";
+import { remarkObsidianSyntax } from "../plugins/markdown/core/obsidian-syntax.mjs";
+import {
+	rehypeDocumentKatex,
+	rehypeObsidian,
+} from "../plugins/markdown/rehype-obsidian.mjs";
 import { remarkAbbreviations } from "../plugins/markdown/remark-abbreviations.mjs";
 import { remarkAcFun } from "../plugins/markdown/remark-acfun.mjs";
 import { remarkAdmonitions } from "../plugins/markdown/remark-admonitions.mjs";
@@ -36,6 +40,7 @@ import { remarkContentAnnotations } from "../plugins/markdown/remark-content-ann
 import { remarkFields } from "../plugins/markdown/remark-fields.mjs";
 import { remarkIncludes } from "../plugins/markdown/remark-includes.mjs";
 import { remarkMarker } from "../plugins/markdown/remark-marker.mjs";
+import { remarkObsidian } from "../plugins/markdown/remark-obsidian.mjs";
 import { remarkOptionGroups } from "../plugins/markdown/remark-option-groups.mjs";
 import { remarkYouTube } from "../plugins/markdown/remark-youtube.mjs";
 import { AcFunComponent } from "../plugins/rehype-component-acfun.mjs";
@@ -69,8 +74,10 @@ const fieldI18nKeys = {
  * 站点统一 Remark 插件链（单一事实来源）
  */
 export const siteRemarkPlugins = [
+	remarkObsidianSyntax,
 	remarkEscapeNumericColons,
 	remarkIncludes,
+	remarkObsidian,
 	remarkContentAnnotations,
 	remarkAbbreviations,
 	remarkAdmonitions,
@@ -99,7 +106,7 @@ export const siteRemarkPlugins = [
  * 站点统一 Rehype 插件链（单一事实来源）
  */
 export const siteRehypePlugins = [
-	rehypeKatex,
+	rehypeDocumentKatex,
 	rehypeSlug,
 	rehypeCollapseGroups,
 	rehypeOptionGroupIds,
@@ -174,6 +181,7 @@ export const siteRehypePlugins = [
 		},
 	],
 	rehypeResponsiveTables,
+	rehypeObsidian,
 ];
 
 /**
@@ -182,7 +190,37 @@ export const siteRehypePlugins = [
  * （如动态页正文 → HTML 字符串）共用同一条 remark/rehype 插件链，
  * 避免两处配置漂移。
  */
-export const siteMarkdownProcessor = unified({
-	remarkPlugins: siteRemarkPlugins,
-	rehypePlugins: siteRehypePlugins,
-});
+export function createSiteMarkdownProcessor(contextOptions = {}) {
+	const processor = unified({
+		gfm: true,
+		smartypants: false,
+		remarkPlugins: siteRemarkPlugins.map((plugin) =>
+			plugin === remarkObsidian ? [plugin, contextOptions] : plugin,
+		),
+		rehypePlugins: siteRehypePlugins,
+	});
+
+	const createRenderer = processor.createRenderer.bind(processor);
+	processor.createRenderer = async (shared = {}) => {
+		const renderer = await createRenderer(shared);
+		return {
+			async render(content, options = {}) {
+				const result = await renderer.render(content, {
+					...options,
+					frontmatter: {
+						...options.frontmatter,
+						...(options.context ? { __markdownContext: options.context } : {}),
+					},
+				});
+				delete result.metadata.frontmatter.__markdownContext;
+				return {
+					...result,
+					diagnostics: result.metadata.frontmatter.markdownDiagnostics || [],
+				};
+			},
+		};
+	};
+	return processor;
+}
+
+export const siteMarkdownProcessor = createSiteMarkdownProcessor();

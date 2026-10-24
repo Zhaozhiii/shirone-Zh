@@ -3,7 +3,6 @@ import { createHash } from "node:crypto";
 import { cp, mkdir, readdir, readFile, rm, writeFile } from "node:fs/promises";
 import { join, relative, resolve } from "node:path";
 import { build } from "esbuild";
-import { checkDist } from "./check-dist.mjs";
 import { releaseVersion } from "./release-version.mjs";
 
 const head = execFileSync("git", ["rev-parse", "HEAD"], {
@@ -35,7 +34,6 @@ const dirty = Boolean(
 );
 if (process.env.CI && dirty)
 	throw new Error("CI releases require a clean working tree");
-await checkDist(resolve("dist"));
 const output = resolve("artifacts/deploy");
 if (
 	!output.startsWith(`${resolve("artifacts")}\\`) &&

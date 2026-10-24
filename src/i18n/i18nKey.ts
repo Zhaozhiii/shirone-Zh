@@ -1,4 +1,17 @@
 enum I18nKey {
+	mdTask = "mdTask",
+	mdReferenceUnpublished = "mdReferenceUnpublished",
+	mdReferenceMissing = "mdReferenceMissing",
+	mdReferenceAmbiguous = "mdReferenceAmbiguous",
+	mdReferenceUnavailable = "mdReferenceUnavailable",
+	mdEmbedProtected = "mdEmbedProtected",
+	mdEmbedLimit = "mdEmbedLimit",
+	mdEmbedUnpublished = "mdEmbedUnpublished",
+	mdEmbedMissing = "mdEmbedMissing",
+	mdEmbedAmbiguous = "mdEmbedAmbiguous",
+	mdReferenceOpen = "mdReferenceOpen",
+	mdBacklinks = "mdBacklinks",
+
 	vaultSeries = "vaultSeries",
 	cmsMovie = "cmsMovie",
 	cmsBook = "cmsBook",

@@ -1,5 +1,6 @@
 import { existsSync, readFileSync } from "node:fs";
 import { dirname, isAbsolute, relative, resolve } from "node:path";
+import { obsidianParser, walk } from "./core/obsidian.mjs";
 
 const INCLUDE_LINE =
 	/^([\t ]{0,3})<!--[\t ]*@include:[\t ]*([^\s]+?)(?:\{(\d*)-(\d*)\}|#([A-Za-z0-9._-]+))?[\t ]*-->[\t ]*$/u;
@@ -74,11 +75,29 @@ export function expandMarkdownIncludes(source, options = {}) {
 	const baseDir = options.baseDir ?? process.cwd();
 	const stack = options.stack ?? [];
 	const lines = String(source).split(/\r?\n/u);
+	const protectedLines = new Set();
+	walk(obsidianParser.parse(String(source)), (node) => {
+		if (
+			["code", "inlineCode", "obsidianComment", "math", "inlineMath"].includes(
+				node.type,
+			)
+		)
+			for (
+				let line = node.position.start.line;
+				line <= node.position.end.line;
+				line++
+			)
+				protectedLines.add(line);
+	});
 	const output = [];
 	let fence = null;
 	let included = false;
 
-	for (const line of lines) {
+	for (const [lineIndex, line] of lines.entries()) {
+		if (protectedLines.has(lineIndex + 1)) {
+			output.push(line);
+			continue;
+		}
 		const fenceMatch = line.match(FENCE_LINE);
 		if (fenceMatch) {
 			if (!fence)

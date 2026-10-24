@@ -264,7 +264,16 @@ export function shirones(options: ShironesOptions = {}): AstroIntegration {
 					paths,
 					"utils/markdown-processor.mjs",
 				);
-				const processor = markdownModule.siteMarkdownProcessor;
+				const createMarkdownProcessor =
+					markdownModule.createSiteMarkdownProcessor;
+				if (typeof createMarkdownProcessor !== "function")
+					throw new TypeError(
+						"The Markdown module must export createSiteMarkdownProcessor.",
+					);
+				const processor = createMarkdownProcessor({
+					root: paths.projectRoot,
+					contentRoot: paths.contentDir,
+				});
 
 				// ── 5. Bundled integrations ─────────────────────────────────────
 				const integrations =

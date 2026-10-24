@@ -1,6 +1,7 @@
 ---
 import { type CollectionEntry, render } from "astro:content";
 import path from "node:path";
+import { pathToFileURL } from "node:url";
 import IconButton from "@components/atoms/action/IconButton.svelte";
 import AccentBar from "@components/atoms/display/AccentBar.svelte";
 import Card from "@components/atoms/display/Card.svelte";
@@ -118,7 +119,9 @@ const sourceMarkdownSyntaxes = hasMarkdownSyntax(
 	"expressive-code",
 )
 	? undefined
-	: getSourceMarkdownSyntaxSnapshot(entry.body);
+	: getSourceMarkdownSyntaxSnapshot(entry.body, {
+			...(entry.filePath ? { fileURL: pathToFileURL(entry.filePath) } : {}),
+		});
 const markdownSyntaxes = mergeMarkdownSyntaxSnapshots(
 	renderedMarkdownSyntaxes,
 	sourceMarkdownSyntaxes,

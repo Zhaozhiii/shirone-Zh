@@ -118,11 +118,9 @@ jobs:
           CONTENT_SHA: ${{ steps.versions.outputs.content_sha }}
           RELEASE_SHA: ${{ steps.versions.outputs.release_sha }}
         run: |
-          if [ "$(node scripts/deploy/check-current.mjs)" != true ]; then echo 'Superseded; a newer publication will take over.' >> "$GITHUB_STEP_SUMMARY"; exit 0; fi
-          (cd artifacts && sha256sum --check release.tar.gz.sha256)
           scp -o BatchMode=yes -o StrictHostKeyChecking=yes artifacts/release.tar.gz "$SERVER_USER@$SERVER_HOST:/srv/shirone-blog/site/incoming/$RELEASE_SHA.tar.gz"
           scp -o BatchMode=yes -o StrictHostKeyChecking=yes artifacts/release.tar.gz.sha256 "$SERVER_USER@$SERVER_HOST:/srv/shirone-blog/site/incoming/$RELEASE_SHA.tar.gz.sha256"
-          if [ "$(node scripts/deploy/check-current.mjs)" != true ]; then exit 0; fi
+          if [ "$(node scripts/deploy/check-current.mjs)" != true ]; then echo 'Superseded; a newer publication will take over.' >> "$GITHUB_STEP_SUMMARY"; exit 0; fi
           ssh -o BatchMode=yes -o StrictHostKeyChecking=yes "$SERVER_USER@$SERVER_HOST" "/usr/local/bin/shirone-blog-release activate $RELEASE_SHA"
           curl --fail --silent --show-error https://blog.zhiii.top/healthz | python3 -c 'import json,os,sys; d=json.load(sys.stdin); assert all(d[k] == os.environ[v] for k,v in [("release","RELEASE_SHA"),("code","CODE_SHA"),("content","CONTENT_SHA")])'
           echo 'deployed=true' >> "$GITHUB_OUTPUT"

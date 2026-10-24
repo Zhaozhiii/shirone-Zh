@@ -105,6 +105,12 @@ importers:
       astro-icon:
         specifier: ^1.2.0
         version: 1.2.0
+      gemoji:
+        specifier: ^8.1.0
+        version: 8.1.0
+      github-slugger:
+        specifier: ^2.0.0
+        version: 2.0.0
       hast-util-from-html:
         specifier: 2.0.3
         version: 2.0.3
@@ -159,6 +165,9 @@ importers:
       remark-directive-rehype:
         specifier: ^0.4.2
         version: 0.4.2
+      remark-gfm:
+        specifier: ^4.0.1
+        version: 4.0.1
       remark-github-admonitions-to-directives:
         specifier: ^1.0.5
         version: 1.0.5
@@ -3710,6 +3719,9 @@ packages:
 
   functions-have-names@1.2.3:
     resolution: {integrity: sha512-xckBUXyTIqT97tq2x2AMb+g163b5JFysYk0x4qxNFwbfQkmNZoiRHb6sPzI9/QV33WeuvVYBUIiD4NzNIyqaRQ==}
+
+  gemoji@8.1.0:
+    resolution: {integrity: sha512-HA4Gx59dw2+tn+UAa7XEV4ufUKI4fH1KgcbenVA9YKSj1QJTT0xh5Mwv5HMFNN3l2OtUe3ZIfuRwSyZS5pLIWw==}
 
   generic-names@4.0.0:
     resolution: {integrity: sha512-ySFolZQfw9FoDb3ed9d80Cm9f0+r7qj+HJkWjeD9RBfpxEVTlVhol+gvaQB/78WbwYfbnNh8nWHHBSlg072y6A==}
@@ -10734,6 +10746,8 @@ snapshots:
       is-callable: 1.2.7
 
   functions-have-names@1.2.3: {}
+
+  gemoji@8.1.0: {}
 
   generic-names@4.0.0:
     dependencies:

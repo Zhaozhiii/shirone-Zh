@@ -2,6 +2,19 @@ import Key from "../i18nKey-runtime.mjs";
 import type { Translation } from "../translation.ts";
 
 export const es: Translation = {
+	[Key.mdTask]: "Tarea",
+	[Key.mdReferenceUnpublished]: "Sin publicar",
+	[Key.mdReferenceMissing]: "Referencia no válida",
+	[Key.mdReferenceAmbiguous]: "Referencia ambigua",
+	[Key.mdReferenceUnavailable]: "Referencia no disponible",
+	[Key.mdEmbedProtected]: "Contenido protegido. Consulta el original.",
+	[Key.mdEmbedLimit]: "No se puede ampliar más",
+	[Key.mdEmbedUnpublished]: "Aún no es público",
+	[Key.mdEmbedMissing]: "El contenido referenciado no existe",
+	[Key.mdEmbedAmbiguous]: "No se puede identificar el contenido",
+	[Key.mdReferenceOpen]: "Abrir original",
+	[Key.mdBacklinks]: "Enlaces entrantes",
+
 	[Key.media]: "Películas y libros",
 	[Key.mediaDescription]: "Películas que he visto y libros que he leído.",
 	[Key.mediaEmpty]: "Aún no hay películas ni libros.",

@@ -92,6 +92,7 @@ SSR 组件和首帧布局依赖的样式使用构建期特征决定条件 `<link
 | `markdown-media` | image-grid、image-presentation | 文章图片画廊、宽度与图注 |
 | `markdown-code` | expressive-code、code-tree 中的代码面板 | Expressive Code 覆盖与折叠控件样式 |
 | `markdown-math` | math | KaTeX 与滚动容器依赖 |
+| `obsidian` | obsidian | 仅新增引用提示、嵌入边界和原生媒体；不引入客户端模块 |
 
 同一页面命中多个消费者时，每个样式包只能声明一次。若实测某个包非常小且拆分会增加更多请求，可以与生命周期相同的相邻包合并；合并决定必须记录在清单说明中，并以生产构建请求数据为依据。
 

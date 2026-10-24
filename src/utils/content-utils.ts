@@ -1,4 +1,5 @@
 import { type CollectionEntry, getCollection } from "astro:content";
+import { pathToFileURL } from "node:url";
 import I18nKey from "@i18n/i18nKey";
 import { i18n } from "@i18n/translation";
 import {
@@ -11,19 +12,27 @@ import { getCategoryUrl, getPostUrl } from "@utils/url-utils";
 import {
 	categoryAncestors,
 	categoryName,
+	categoryRank,
 	tagName,
-	vaultCategories,
-	vaultTags,
+	tagRank,
 } from "@utils/vault-content";
 
-// // Retrieve posts and sort them by publication date
+/** Shared draft policy for every post consumer, including taxonomy counts. */
+function getVisiblePosts(): Promise<CollectionEntry<"posts">[]> {
+	return getCollection(
+		"posts",
+		({ data }) => !import.meta.env.PROD || data.draft !== true,
+	);
+}
+
 async function getRawSortedPosts(): Promise<CollectionEntry<"posts">[]> {
-	const allBlogPosts = await getCollection("posts", ({ data }) => {
-		return import.meta.env.PROD ? data.draft !== true : true;
-	});
+	const allBlogPosts = await getVisiblePosts();
 
 	for (const post of allBlogPosts) validatePublicationMetadata(post);
-	const sorted = allBlogPosts.sort(comparePublicationEntries);
+	// Navigation metadata belongs to this query, not Astro's shared entries.
+	const sorted = allBlogPosts
+		.map((post) => ({ ...post, data: { ...post.data } }))
+		.sort(comparePublicationEntries);
 	initPostIdMap(sorted);
 	return sorted;
 }
@@ -31,15 +40,17 @@ async function getRawSortedPosts(): Promise<CollectionEntry<"posts">[]> {
 export async function getSortedPosts(): Promise<CollectionEntry<"posts">[]> {
 	const sorted = await getRawSortedPosts();
 
-	for (let i = 1; i < sorted.length; i++) {
-		sorted[i].data.nextSlug = sorted[i - 1].id;
-		sorted[i].data.nextTitle = sorted[i - 1].data.title;
-		sorted[i].data.nextUrl = getPostUrl(sorted[i - 1]);
-	}
-	for (let i = 0; i < sorted.length - 1; i++) {
-		sorted[i].data.prevSlug = sorted[i + 1].id;
-		sorted[i].data.prevTitle = sorted[i + 1].data.title;
-		sorted[i].data.prevUrl = getPostUrl(sorted[i + 1]);
+	for (let i = 0; i < sorted.length; i++) {
+		const next = sorted[i - 1];
+		const prev = sorted[i + 1];
+		Object.assign(sorted[i].data, {
+			nextSlug: next?.id,
+			nextTitle: next?.data.title,
+			nextUrl: next ? getPostUrl(next) : undefined,
+			prevSlug: prev?.id,
+			prevTitle: prev?.data.title,
+			prevUrl: prev ? getPostUrl(prev) : undefined,
+		});
 	}
 
 	return sorted;
@@ -71,29 +82,27 @@ export type Tag = {
 };
 
 export async function getTagList(): Promise<Tag[]> {
-	const allBlogPosts = await getCollection<"posts">("posts", ({ data }) => {
-		return import.meta.env.PROD ? data.draft !== true : true;
-	});
+	const allBlogPosts = await getVisiblePosts();
 
-	const countMap: { [key: string]: number } = {};
+	const countMap = new Map<string, number>();
 	allBlogPosts.forEach((post: { data: { tags: string[] } }) => {
 		post.data.tags.forEach((tag: string) => {
-			if (!countMap[tag]) countMap[tag] = 0;
-			countMap[tag]++;
+			countMap.set(tag, (countMap.get(tag) ?? 0) + 1);
 		});
 	});
 
 	// sort tags
-	const keys: string[] = Object.keys(countMap).sort((a, b) => {
-		const ai = vaultTags.findIndex((t) => t.key === a);
-		const bi = vaultTags.findIndex((t) => t.key === b);
+	const keys = [...countMap.keys()].sort((a, b) => {
 		return (
-			(ai < 0 ? 999999 : ai) - (bi < 0 ? 999999 : bi) ||
-			a.toLowerCase().localeCompare(b.toLowerCase())
+			tagRank(a) - tagRank(b) || a.toLowerCase().localeCompare(b.toLowerCase())
 		);
 	});
 
-	return keys.map((key) => ({ name: tagName(key), key, count: countMap[key] }));
+	return keys.map((key) => ({
+		name: tagName(key),
+		key,
+		count: countMap.get(key) ?? 0,
+	}));
 }
 
 export type Category = {
@@ -105,14 +114,13 @@ export type Category = {
 };
 
 export async function getCategoryList(): Promise<Category[]> {
-	const allBlogPosts = await getCollection<"posts">("posts", ({ data }) => {
-		return import.meta.env.PROD ? data.draft !== true : true;
-	});
-	const count: { [key: string]: number } = {};
+	const allBlogPosts = await getVisiblePosts();
+	const count = new Map<string, number>();
+	const increment = (key: string) => count.set(key, (count.get(key) ?? 0) + 1);
 	allBlogPosts.forEach((post: { data: { category: string | null } }) => {
 		if (!post.data.category) {
 			const ucKey = i18n(I18nKey.uncategorized);
-			count[ucKey] = count[ucKey] ? count[ucKey] + 1 : 1;
+			increment(ucKey);
 			return;
 		}
 
@@ -121,20 +129,21 @@ export async function getCategoryList(): Promise<Category[]> {
 				? post.data.category.trim()
 				: String(post.data.category).trim();
 
-		count[categoryName] = count[categoryName] ? count[categoryName] + 1 : 1;
-		for (const parent of categoryAncestors(categoryName))
-			count[parent] = (count[parent] ?? 0) + 1;
+		increment(categoryName);
+		for (const parent of categoryAncestors(categoryName)) increment(parent);
 	});
 
-	const rank = (key: string) => {
-		const i = vaultCategories.findIndex((c) => c.key === key);
-		return i < 0 ? 999999 : i;
-	};
-	const lst = Object.keys(count).sort((a, b) => {
-		const ap = [...categoryAncestors(a).reverse(), a];
-		const bp = [...categoryAncestors(b).reverse(), b];
+	const paths = new Map(
+		[...count.keys()].map((key) => [
+			key,
+			[...categoryAncestors(key).reverse(), key],
+		]),
+	);
+	const lst = [...count.keys()].sort((a, b) => {
+		const ap = paths.get(a) ?? [a];
+		const bp = paths.get(b) ?? [b];
 		for (let i = 0; i < Math.min(ap.length, bp.length); i++) {
-			const difference = rank(ap[i]) - rank(bp[i]);
+			const difference = categoryRank(ap[i]) - categoryRank(bp[i]);
 			if (difference) return difference;
 			if (ap[i] !== bp[i]) return ap[i].localeCompare(bp[i]);
 		}
@@ -146,8 +155,8 @@ export async function getCategoryList(): Promise<Category[]> {
 		ret.push({
 			key: c,
 			name: categoryName(c),
-			depth: categoryAncestors(c).length,
-			count: count[c],
+			depth: (paths.get(c)?.length ?? 1) - 1,
+			count: count.get(c) ?? 0,
 			url: getCategoryUrl(c),
 		});
 	}
@@ -202,21 +211,37 @@ function withMomentThumbnails(image: MomentImage): MomentImage {
 	};
 }
 
-export async function getSortedMoments(): Promise<MomentItem[]> {
-	const entries = await getCollection("moments", ({ data }) => {
-		return import.meta.env.PROD ? data.draft !== true : true;
-	});
+function getVisibleMoments(): Promise<CollectionEntry<"moments">[]> {
+	return getCollection(
+		"moments",
+		({ data }) => !import.meta.env.PROD || data.draft !== true,
+	);
+}
 
-	const sorted = entries.sort(comparePublicationEntries);
-
+async function renderMoment(
+	entry: CollectionEntry<"moments">,
+): Promise<string> {
 	momentsRendererPromise ??= siteMarkdownProcessor.createRenderer({});
 	const renderer = await momentsRendererPromise;
+	const { code } = await renderer.render(entry.body ?? "", {
+		context: { namespace: `moment-${entry.id}-` },
+		...(entry.filePath ? { fileURL: pathToFileURL(entry.filePath) } : {}),
+		frontmatter: entry.data as unknown as Record<string, unknown>,
+	});
+	return code;
+}
+
+/** Counting must not initialize Markdown plugins or render every moment. */
+export async function getMomentCount(): Promise<number> {
+	return (await getVisibleMoments()).length;
+}
+
+export async function getSortedMoments(): Promise<MomentItem[]> {
+	const sorted = (await getVisibleMoments()).sort(comparePublicationEntries);
 
 	return Promise.all(
 		sorted.map(async (entry) => {
-			const { code } = await renderer.render(entry.body ?? "", {
-				frontmatter: entry.data as unknown as Record<string, unknown>,
-			});
+			const code = await renderMoment(entry);
 			return {
 				id: entry.id,
 				published: new Date(entry.data.published).toISOString(),
@@ -269,20 +294,14 @@ export async function getRecentMomentItems(
 	limit: number,
 ): Promise<RecentMomentItem[]> {
 	const count = Math.max(1, Math.floor(limit));
-	const entries = await getCollection("moments", ({ data }) => {
-		return import.meta.env.PROD ? data.draft !== true : true;
-	});
-	const recent = entries.sort(comparePublicationEntries).slice(0, count);
+	const recent = (await getVisibleMoments())
+		.sort(comparePublicationEntries)
+		.slice(0, count);
 	if (recent.length === 0) return [];
-
-	momentsRendererPromise ??= siteMarkdownProcessor.createRenderer({});
-	const renderer = await momentsRendererPromise;
 
 	return Promise.all(
 		recent.map(async (entry) => {
-			const { code } = await renderer.render(entry.body ?? "", {
-				frontmatter: entry.data as unknown as Record<string, unknown>,
-			});
+			const code = await renderMoment(entry);
 			return {
 				id: entry.id,
 				published: new Date(entry.data.published).toISOString(),
