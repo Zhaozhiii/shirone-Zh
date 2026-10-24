@@ -48,6 +48,24 @@ Actions 每半小时检查窗口，受排队影响，不承诺实时发布。公
 插件、启用清单及凭据为设备本地文件，不提交 Vault。
 软件关闭前未推送的修改仍在本地，下次启动或联网后继续处理；不保证强制结束进程时完成网络推送。
 
+### 本机图片自动入库
+
+日常操作和属性说明保存在 Vault 的“使用说明.md”。粘贴、拖入图片优先使用 Obsidian 原生附件功能。
+Windows 本机另外安装一个 Git pre-commit hook：在 Obsidian Git 的普通提交前，把已暂存笔记实际引用、且能访问到的库外图片复制进 `附件/导入/<内容哈希>.<扩展名>`，再更新笔记引用并一同暂存。支持常见图片格式的 Markdown、引用式图片、wiki 图片、HTML `img` 和单行封面属性；跳过远端 URL、代码示例和部分暂存的笔记，保留源文件。无法定位的文件不会凭同名猜测或自动下载。
+
+代码全部位于源码仓 `tools/vault/import-local-images.mjs`，设备入口只保存在 Vault 的 `.git/hooks/pre-commit`，不增加 Obsidian 插件或驻留进程。只复制引用的文件，其他私人附件仍由发布白名单隔离。自动入库发生在**本机提交之前**，GitHub 构建不能访问电脑硬盘；手机应先用原生方式把图片保存进库内。
+
+在另一台已安装源码依赖和 Node.js 的电脑上，从源码仓执行：
+
+```powershell
+node tools/vault/install-image-hook.mjs ../Obsidian-Vault
+node --test tests/content/local-images.test.mjs
+```
+
+安装器保留已有的其他 pre-commit hook 并拒绝覆盖，需人工合并；此 hook 不随 Vault 克隆传播。
+
+若发布卡在资源转换阶段，先检查所有待公开笔记是否含旧盘符、失效相对图片或重复网址；一篇失败会使整次构建中止，线上保留上一个成功版本。修复或补齐引用后重新同步即可，不要求移动到“博客”文件夹。
+
 ## Android 首次连接
 
 Obsidian Git 官方提示移动端不稳定并受内存限制。Android 推荐其建议的原生 [GitSync](https://github.com/ViscousPot/GitSync)。
