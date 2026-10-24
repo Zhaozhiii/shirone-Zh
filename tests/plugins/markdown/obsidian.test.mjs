@@ -32,6 +32,18 @@ test("wiki aliases, relative and encoded Markdown links share canonical headings
 	assert.equal((code.match(/href="\/posts\/b\/#%E5%B0%8F%E8%8A%82"/g) || []).length, 3);
 	assert.match(code, /href="\/posts\/b\/#block-block"/);
 });
+test("escaped wiki alias separators resolve in moments, tables, headings and embeds", async () => {
+	const source = "详情见[[目录/B\\|设计文档]]。\n\n| 文档 |\n| --- |\n| [[目录/B#小节\\|章节]] |\n\n# [[目录/B\\|设计文档]]\n\n![[B#^block\\|摘录]]";
+	const { code, diagnostics } = await render(source, { namespace: "moment-launch-" });
+	assert.deepEqual(diagnostics, []);
+	assert.match(code, /详情见<a href="\/posts\/b\/">设计文档<\/a>。/);
+	assert.match(code, /<td><a href="\/posts\/b\/#%E5%B0%8F%E8%8A%82">章节<\/a><\/td>/);
+	assert.match(code, /id="moment-launch-设计文档"/);
+	assert.match(code, /id="moment-launch-embed-1-block-block"/);
+	const image = await render("![[图 片.png\\|300]]", { current: "目录/B.md" });
+	assert.deepEqual(image.diagnostics, []);
+	assert.match(image.code, /width="300"/);
+});
 test("missing, private, ambiguous and out-of-root references invalidate only their own content", async () => {
 	const { code, diagnostics } = await render("BEFORE [[私人|label]] ![[私人]] [[missing]] ![[../../outside.md]] AFTER");
 	assert.match(code, /BEFORE/); assert.match(code, /AFTER/);

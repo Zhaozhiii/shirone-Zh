@@ -16,6 +16,23 @@ function fixture(t) {
 	const build = () => compileVault({ sourceRoot, root, previewAt: "2026-10-25T00:00:00+08:00" });
 	return { root, sourceRoot, write, note, build };
 }
+
+test("escaped aliases retain original moment syntax and generate canonical links and backlinks", async (t) => {
+	const { root, note, build } = fixture(t);
+	note("博客/博客设计.md", { type: "article", publish: true, slug: "design" }, "# Design");
+	const source = "新版博客上线了，详情见[[博客/博客设计\\|设计文档]]。";
+	note("动态/上线.md", { type: "moment", publish: true }, source);
+	const result = build();
+	assert.deepEqual(result.diagnostics, []);
+	const data = JSON.parse(readFileSync(join(root, ".vault-cache/markdown-index.json"), "utf8"));
+	const moment = data.notes.find(({ path }) => path === "动态/上线.md");
+	assert.ok(moment.body.includes(source));
+	assert.equal(data.backlinks["博客/博客设计.md"][0].url, moment.url);
+	const r = await siteMarkdownProcessor.createRenderer({});
+	const { code, diagnostics } = await r.render(moment.body, { context: { index: createNoteIndex(data.notes), current: moment.path, namespace: "moment-launch-" } });
+	assert.deepEqual(diagnostics, []);
+	assert.match(code, /href="\/posts\/design\/">设计文档<\/a>/);
+});
 test("all reference failures publish other content without reading or copying restricted targets", async (t) => {
 	const { root, note, write, build } = fixture(t);
 	note("私人.md", {}, "PRIVATE_SENTINEL_NEVER_PUBLISH");

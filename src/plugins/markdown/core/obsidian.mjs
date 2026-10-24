@@ -337,7 +337,11 @@ export function prepareNote(
 
 export function splitTarget(value) {
 	const separator = value.indexOf("|");
-	const target = (separator < 0 ? value : value.slice(0, separator)).trim();
+	// Obsidian also uses an escaped alias separator (required inside GFM tables).
+	// Remove only that escape before normalizing Windows path separators.
+	const target = (
+		separator < 0 ? value : value.slice(0, separator).replace(/\\$/, "")
+	).trim();
 	const label = separator < 0 ? "" : value.slice(separator + 1).trim();
 	const hash = target.indexOf("#");
 	return {

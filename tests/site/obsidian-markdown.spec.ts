@@ -35,6 +35,19 @@ async function mount(page: Page, code = rendered.code, metadata = rendered.metad
 	}, { code, packs });
 }
 
+test("escaped wiki aliases produce native navigable links in Markdown fragments", async ({ page }) => {
+	const body = "# Section\n\n详情见[[Public\\|设计文档]]。 [[#Section\\|返回章节]]";
+	const result = await renderer.render(body, { context: { namespace: "moment-launch-", index: createNoteIndex([{ path: "Public.md", url: "/public/", body: "# Public" }]) } });
+	await mount(page, result.code, result.metadata);
+	const root = page.locator("#markdown-compatibility-fixture");
+	await expect(root.getByRole("link", { name: "设计文档", exact: true })).toHaveAttribute("href", "/public/");
+	await expect(root.locator(".obsidian-reference")).toHaveCount(0);
+	await root.getByRole("link", { name: "返回章节", exact: true }).focus();
+	await page.keyboard.press("Enter");
+	await expect(page).toHaveURL(/#moment-launch-section$/);
+	await expect(root.locator("#moment-launch-section")).toBeInViewport();
+});
+
 test("native unavailable-link popovers, folding, anchors and accessibility", async ({ page }) => {
 	await mount(page);
 	const root = page.locator("#markdown-compatibility-fixture");
