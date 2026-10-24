@@ -54,8 +54,10 @@ define({
 
   --inline-code-bg: var(--surface-container-low) var(--surface-container-high)
   --inline-code-color: var(--on-surface-variant) var(--on-surface-variant)
-  --selection-bg: var(--primary-container) var(--primary-container)
-  --codeblock-selection: var(--primary-container) var(--primary-container)
+  /* Translucent theme accents keep selected text legible on reading surfaces. */
+  --selection-bg: unquote("color-mix(in oklab, var(--primary) 22%, transparent)") unquote("color-mix(in oklab, var(--primary) 26%, transparent)")
+  --selection-color: var(--on-surface) var(--on-surface)
+  --codeblock-selection: var(--selection-bg) var(--selection-bg)
   /* 代码块跟随明暗：白天浅色（配合 github-light），夜间深色（配合 github-dark） */
   --codeblock-bg: var(--mc-surface-container-low, oklch(0.97 0.005 var(--hue))) var(--surface-dim)
   --codeblock-topbar-bg: var(--mc-surface-container, oklch(0.94 0.01 var(--hue))) var(--surface-container-low)
