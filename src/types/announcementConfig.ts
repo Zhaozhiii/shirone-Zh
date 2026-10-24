@@ -9,7 +9,7 @@ export interface AnnouncementLinkConfig {
 	text: string;
 	/** 链接 URL */
 	url: string;
-	/** 是否外部链接（新窗口打开） */
+	/** @deprecated 兼容旧配置；现在按站点域名自动判断新窗口。 */
 	external?: boolean;
 }
 
@@ -41,6 +41,8 @@ export interface AnnouncementBoardConfig {
 }
 
 export interface AnnouncementConfig {
+	/** 首页公告列表；省略时沿用单条 content/link，空数组不展示首页公告。 */
+	homeItems?: AnnouncementBoardItem[];
 	/** 公告栏标题，留空则自动使用 i18n Key.announcement ("公告") */
 	title?: string;
 	/** 公告正文内容 */

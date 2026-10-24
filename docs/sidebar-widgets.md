@@ -74,8 +74,10 @@ interface SidebarWidgetBase {
 ## 5. Announcement — 站点公告
 
 - **数据源**：`src/config/announcementConfig.ts` 中的 `announcementConfig`；
-- **渲染**：纯卡片（无 `WidgetLayout` 标题外壳），支持关闭与 localStorage 记忆；
-- **零额外负担**：内容为空或已关闭时不渲染 DOM；
+- **多条公告**：`homeItems` 数组逐条展示标题、可选日期、正文和链接；空数组不显示卡片，省略则兼容原有 `content/link` 单条配置。原生笔记模式下所有公开公告进入铃铛，仅 `home: true` 同时进入首页；关闭状态按当前列表内容版本保存，编辑公告后重新显示。
+- **链接跳转**：首页与铃铛共用站点域名判断。与 `siteConfig.site` 主机名、端口一致的 HTTP(S) 地址转换为站内路径，交给 Swup；其他域名（包括父域、兄弟子域）使用新标签页。`link.external` 仅保留旧配置类型兼容，不再覆盖自动判断。
+- **渲染**：`WidgetLayout` 公告标题外壳，支持关闭与 localStorage 记忆；
+- **零额外负担**：列表和兼容正文都为空时不渲染卡片；关闭后隐藏，内容更新或记忆到期后恢复；
 - **页面范围**：默认 `pages: ["home"]`。
 
 ---

@@ -37,6 +37,7 @@ const metadata = new Set([
 	"unpublishAt",
 	"hidden",
 	"enable",
+	"home",
 ]);
 export function files(root) {
 	if (!existsSync(root)) return [];
@@ -545,13 +546,15 @@ export function compileVault({
 		const original = existsSync(path)
 			? parse(readFileSync(path, "utf8")) || {}
 			: {};
-		const items = sorted
-			.filter((r) => r.domain === "announcements")
+		const announcements = sorted.filter((r) => r.domain === "announcements");
+		const items = announcements
 			.map((r) => mapAssets(cleanData(r), r.path));
 		output(
 			".vault-cache/config/announcement.yaml",
 			stringify({
 				...original,
+				homeItems: announcements.filter((r) => r.data.home === true)
+					.map((r) => mapAssets(cleanData(r), r.path)),
 				board: {
 					...original.board,
 					enable: original.board?.enable ?? items.length > 0,

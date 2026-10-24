@@ -4,6 +4,8 @@ import { i18n } from "@i18n/translation";
 import { url } from "@utils/url-utils";
 import { Icon } from "astro-icon/components";
 import { announcementConfig } from "@/config/announcementConfig";
+import { siteConfig } from "@/config/siteConfig";
+import { announcementLink } from "@/utils/announcement-link";
 
 /**
  * BoardPanel.astro — 公告板弹窗面板（分子）。
@@ -35,8 +37,8 @@ const title = announcementConfig.title || i18n(I18nKey.announcement);
 					{items.map((item) => {
 						const link = item.link;
 						const showLink = link?.url && link.enable !== false;
-						const external =
-							link?.external ?? /^https?:\/\//.test(link?.url ?? "");
+						const destination = announcementLink(link?.url || "", siteConfig.site);
+						const external = destination.external;
 						return (
 							<article class="board-panel__item">
 								<div class="board-panel__item-head">
@@ -50,7 +52,7 @@ const title = announcementConfig.title || i18n(I18nKey.announcement);
 								{showLink && (
 									<a
 										class="board-panel__link"
-										href={link.url.startsWith("/") ? url(link.url) : link.url}
+										href={!external && destination.href.startsWith("/") ? url(destination.href) : destination.href}
 										target={external ? "_blank" : undefined}
 										rel={external ? "noreferrer noopener" : undefined}
 									>

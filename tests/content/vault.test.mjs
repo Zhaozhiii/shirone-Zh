@@ -6,6 +6,7 @@ import { join, dirname } from "node:path";
 import { compileVault, noteText, readRecords, visible, instant, files } from "../../tools/vault/core.mjs";
 import { verifyPrivateOutput } from "../../tools/vault/verify-dist.mjs";
 import { migrate } from "../../tools/vault/migrate.mjs";
+import { parse } from "yaml";
 
 function fixture(t) {
   const temp=mkdtempSync(join(tmpdir(),"native-vault-"));
@@ -17,6 +18,47 @@ function fixture(t) {
   const build=()=>compileVault({sourceRoot:source,root,production:true,previewAt:"2026-10-24T08:00:00+08:00"});
   return {source,root,write,note,build};
 }
+
+test("announcement home opt-in supports multiple entries and shares board content and links", t => {
+  const {root,note,build}=fixture(t);
+  const base={type:"announcement",publish:true,date:"2026.10.24 3:4:5"};
+  note("a.md",{...base,title:"首页一",home:true,link:{text:"关于本站",url:"https://example.com/about"}},"第一条正文");
+  note("b.md",{...base,title:"首页二",home:true,link:"https://example.com"},"第二条正文");
+  note("c.md",{...base,title:"仅铃铛",home:false},"普通公告");
+  note("d.md",{...base,title:"默认铃铛"},"默认公告");
+  note("e.md",{...base,title:"私有",home:true,publish:false},"PRIVATE_ANNOUNCEMENT");
+  note("f.md",{...base,title:"未来",home:true,publishAt:"2026.10.25"},"FUTURE_ANNOUNCEMENT");
+  note("g.md",{...base,title:"过期",home:true,unpublishAt:"2026.10.24"},"EXPIRED_ANNOUNCEMENT");
+  build();
+  const config=parse(readFileSync(join(root,".vault-cache/config/announcement.yaml"),"utf8"));
+  assert.deepEqual(config.homeItems.map(x=>x.title),["首页一","首页二"]);
+  assert.equal(config.board.items.length,4);
+  assert.deepEqual(config.homeItems,config.board.items.slice(0,2));
+  assert.equal(config.homeItems[0].date,"2026-10-24 03:04:05");
+  assert.deepEqual(config.homeItems[0].link,{text:"关于本站",url:"https://example.com/about"});
+  assert.deepEqual(config.homeItems[1].link,{text:"首页二",url:"https://example.com"});
+  assert.doesNotMatch(JSON.stringify(config),/PRIVATE_ANNOUNCEMENT|FUTURE_ANNOUNCEMENT|EXPIRED_ANNOUNCEMENT/);
+  note("a.md",{...base,title:"首页一",home:false},"修改后正文");
+  note("b.md",{...base,title:"首页二",publish:false},"已撤回");
+  build();
+  const changed=parse(readFileSync(join(root,".vault-cache/config/announcement.yaml"),"utf8"));
+  assert.deepEqual(changed.homeItems,[]);
+  assert.equal(changed.board.items.length,3);
+  assert.equal(changed.board.items[0].content,"修改后正文");
+});
+
+test("home must be a boolean and an empty native list overrides legacy demo content", t => {
+  const {root,note,build}=fixture(t);
+  mkdirSync(join(root,"site/config"),{recursive:true});
+  writeFileSync(join(root,"site/config/announcement.yaml"),'content: Legacy demo\n');
+  note("a.md",{type:"announcement",publish:true,title:"公告",home:"false"},"正文");
+  assert.throws(build,/同时推送到首页必须为开关/);
+  note("a.md",{type:"announcement",publish:true,title:"公告"},"正文");
+  build();
+  const config=parse(readFileSync(join(root,".vault-cache/config/announcement.yaml"),"utf8"));
+  assert.deepEqual(config.homeItems,[]);
+  assert.equal(config.board.items.length,1);
+});
 test("only literal publish=true and a supported type can publish, in any natural folder",t=>{
   const {root,note,build}=fixture(t);
   for(const [i,data] of [{type:"article"},{type:"article",publish:false},{type:"article",publish:"true"},{publish:true},{type:"note",publish:true},{type:"constructor",publish:true}].entries()) note(`个人笔记/${i}.md`,data,"PRIVATE_SENTINEL_CONTENT");

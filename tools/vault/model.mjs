@@ -243,6 +243,7 @@ export const domains = {
 	announcements: {
 		label: "公告",
 		fields: {
+			home: ["同时推送到首页", "boolean"],
 			title: ["标题", "text", true],
 			content: ["正文", "textarea", true],
 			tag: ["标签", "text"],
