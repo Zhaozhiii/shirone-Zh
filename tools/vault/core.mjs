@@ -17,6 +17,7 @@ import { parse, stringify } from "yaml";
 import { unified } from "unified";
 import remarkParse from "remark-parse";
 import { domains } from "./model.mjs";
+import { normalizeNoteProperties } from "./properties.mjs";
 import { instant, normalizeTime, shanghaiDate, displayTime } from "./time.mjs";
 export { instant } from "./time.mjs";
 import adapters from "./adapters.json" with { type: "json" };
@@ -88,7 +89,7 @@ export function readRecords(root) {
     const domain = Object.hasOwn(types,note.data.type) ? types[note.data.type] : undefined;
     if (!domain) continue;
     const path = relative(root, file).replaceAll("\\", "/");
-    const data = { ...note.data };
+    const data = normalizeNoteProperties(note.data, domain);
     const authoredDate = data.date ?? data.publishedAt ?? data.published;
     const name = posix.basename(path, ".md");
     data.title ??= name;
