@@ -111,7 +111,7 @@ export function readRecords(root) {
         data.published = data.publish === true ? (data.publishAt ? normalizeTime(data.publishAt, `${path}：发布时间`, creationDate).slice(0,10) : creationDate()) : String(data.created || statSync(file).birthtime.toISOString()).slice(0,10);
       }
       data.alias ??= slug(data.slug || data.id || name);
-      if (domain === "posts") data.image ??= data.cover;
+      if (domain === "posts") data.image ??= data.cover ?? "";
     }
     if (data.publish === true) {
       if (data.published) {

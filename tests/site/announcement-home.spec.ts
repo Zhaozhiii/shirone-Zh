@@ -49,9 +49,11 @@ test.afterAll(() => {
 	if (original) writeFileSync(configPath, original);
 });
 
-test("all pushed notices render with their own button text, URL and date", async ({
+test("pushed notices use separate cards without titles or dates and align their actions", async ({
 	page,
 }) => {
+	await page.emulateMedia({ reducedMotion: "reduce" });
+	await page.setViewportSize({ width: 1280, height: 600 });
 	await page.goto("/");
 	const widget = page.locator('widget-layout[data-id="announcement"]');
 	await expect(widget.locator(".announcement-item")).toHaveCount(2);
@@ -69,12 +71,50 @@ test("all pushed notices render with their own button text, URL and date", async
 	await expect(
 		widget.getByRole("link", { name: "Read second notice" }),
 	).toHaveAttribute("target", "_blank");
-	await expect(widget.locator("time")).toHaveText([
-		"2026-10-24",
-		"2026-10-24 03:04:05",
-	]);
+	await expect(widget.locator("time")).toHaveCount(0);
+	await expect(widget).not.toContainText("Home announcement one");
+	await expect(widget).not.toContainText("Home announcement two");
+	await expect(
+		widget.locator(".announcement-wrapper > widget-layout > .m3-card"),
+	).toHaveCount(2);
+	await page.waitForFunction(() =>
+		document.documentElement.style
+			.getPropertyValue("--mc-primary")
+			.trim()
+			.startsWith("#"),
+	);
+	for (const card of await widget.locator(".announcement-wrapper").all()) {
+		const link = await card.locator(".announcement-btn").boundingBox();
+		const close = await card.locator(".announcement-close-btn").boundingBox();
+		expect(link).not.toBeNull();
+		expect(close).not.toBeNull();
+		expect(
+			Math.abs(link!.y + link!.height / 2 - close!.y - close!.height / 2),
+		).toBeLessThan(1);
+	}
+	const cards = await widget.locator(".announcement-wrapper").all();
+	const first = await cards[0].boundingBox();
+	const second = await cards[1].boundingBox();
+	expect(second!.y - first!.y - first!.height).toBeGreaterThan(0);
 	// The existing FAB policy reveals the bell after scrolling past the banner.
-	await page.evaluate(() => window.scrollTo(0, document.body.scrollHeight));
+	await page.waitForFunction(() =>
+		[...document.querySelectorAll(".onload-animation")].every(
+			(el) =>
+				(el as HTMLElement).offsetParent === null ||
+				getComputedStyle(el).opacity === "1",
+		),
+	);
+	await expect
+		.poll(async () => {
+			await page.evaluate(() =>
+				window.scrollTo({
+					top: document.documentElement.scrollHeight,
+					behavior: "instant",
+				}),
+			);
+			return page.evaluate(() => window.scrollY);
+		})
+		.toBeGreaterThan(210);
 	await page.locator("#fab-board-btn").click();
 	await expect(page.locator("#board-panel .board-panel__item")).toHaveCount(3);
 	await expect(page.locator("#board-panel")).toContainText("Bell only notice");
@@ -108,21 +148,35 @@ test("dismissal survives Swup navigation and an older content version cannot hid
 }) => {
 	await page.goto("/");
 	const widget = page.locator('widget-layout[data-id="announcement"]');
-	await widget.locator(".announcement-close-btn").click();
-	await expect(widget).toBeHidden();
+	const cards = widget.locator(".announcement-wrapper");
+	await cards.first().locator(".announcement-close-btn").click();
+	await expect(cards.first()).toBeHidden();
+	await expect(cards.nth(1)).toBeVisible();
 	await page.locator('a[href="/archive/"]').first().click();
 	await expect(page).toHaveURL(/archive/);
-	await expect(widget).toBeHidden();
+	await expect(cards.first()).toBeHidden();
 	await page.locator('a[href="/"]').first().click();
 	await expect(page).toHaveURL(/:\d+\/$/);
-	await expect(widget).toBeHidden();
-	await page.evaluate(() =>
+	await expect(cards.first()).toBeHidden();
+	await expect(cards.nth(1)).toBeVisible();
+	await page.reload();
+	await expect(cards.first()).toBeHidden();
+	await expect(cards.nth(1)).toBeVisible();
+	await page.evaluate(() => {
+		for (const key of Object.keys(localStorage))
+			if (key.startsWith("announcementClosed:")) localStorage.removeItem(key);
+		localStorage.setItem("announcementClosed", "true");
+		localStorage.setItem("announcementClosedTime", String(Date.now()));
 		localStorage.setItem(
 			"announcementClosedVersion",
 			"previous-content-version",
-		),
-	);
+		);
+	});
 	await page.reload();
 	await expect(widget).toBeVisible();
 	await expect(widget.locator(".announcement-item")).toHaveCount(2);
+	await expect(cards.first()).toBeVisible();
+	await cards.first().locator(".announcement-close-btn").click();
+	await cards.nth(1).locator(".announcement-close-btn").click();
+	await expect(widget).toBeHidden();
 });

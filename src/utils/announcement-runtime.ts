@@ -1,38 +1,46 @@
-/** Sidebar dismissal applies to one content version; edits become visible immediately.
- * This utility owns persistence and rechecks the persistent shell after Swup.
- */
+/** Dismiss each content version independently and recheck the persistent shell after Swup. */
 export function initAnnouncements(): void {
-	const closedKey = "announcementClosed";
-	const timeKey = "announcementClosedTime";
-	const versionKey = "announcementClosedVersion";
+	const dismissed = new Map<string, number>();
 	const widgets = () =>
 		document.querySelectorAll<HTMLElement>(
 			'widget-layout[data-id="announcement"]',
 		);
+	const keyFor = (version: string) => `announcementClosed:${version}`;
+	const active = (time: number, duration: number) =>
+		time > 0 && (duration <= 0 || (Date.now() - time) / 1000 < duration);
 	function refresh() {
 		for (const widget of widgets()) {
-			const wrapper = widget.querySelector<HTMLElement>(
+			const wrappers = widget.querySelectorAll<HTMLElement>(
 				".announcement-wrapper",
+			);
+			for (const wrapper of wrappers) {
+				const version = wrapper.dataset.version || "";
+				const duration = Number(wrapper.dataset.closeDuration ?? 86400);
+				let hidden = active(dismissed.get(version) || 0, duration);
+				try {
+					const key = keyFor(version);
+					const time = Number(localStorage.getItem(key));
+					hidden ||= active(time, duration);
+					if (time && !active(time, duration)) localStorage.removeItem(key);
+					// Preserve existing whole-widget dismissals until their content or duration changes.
+					hidden ||=
+						localStorage.getItem("announcementClosed") === "true" &&
+						localStorage.getItem("announcementClosedVersion") ===
+							widget.dataset.version &&
+						active(
+							Number(localStorage.getItem("announcementClosedTime")),
+							duration,
+						);
+				} catch {
+					/* Page-local dismissal still works when storage is unavailable. */
+				}
+				wrapper.style.display = hidden ? "none" : "";
+			}
+			const hidden = [...wrappers].every(
+				(wrapper) => wrapper.style.display === "none",
 			);
 			const container =
 				widget.closest<HTMLElement>(".sidebar-widget") || widget;
-			const duration = Number(wrapper?.dataset.closeDuration ?? 86400);
-			let hidden = false;
-			try {
-				const time = Number(localStorage.getItem(timeKey));
-				hidden =
-					localStorage.getItem(closedKey) === "true" &&
-					localStorage.getItem(versionKey) === wrapper?.dataset.version &&
-					(duration <= 0 ||
-						(time > 0 && (Date.now() - time) / 1000 < duration));
-				if (!hidden) {
-					localStorage.removeItem(closedKey);
-					localStorage.removeItem(timeKey);
-					localStorage.removeItem(versionKey);
-				}
-			} catch {
-				/* Storage can be unavailable; keep the announcement readable. */
-			}
 			container.style.display = hidden ? "none" : "";
 			widget.style.display = hidden ? "none" : "";
 		}
@@ -44,18 +52,15 @@ export function initAnnouncements(): void {
 				: null;
 		const wrapper = button?.closest<HTMLElement>(".announcement-wrapper");
 		if (!wrapper) return;
+		const version = wrapper.dataset.version || "";
+		const time = Date.now();
+		dismissed.set(version, time);
 		try {
-			localStorage.setItem(closedKey, "true");
-			localStorage.setItem(timeKey, String(Date.now()));
-			localStorage.setItem(versionKey, wrapper.dataset.version || "");
+			localStorage.setItem(keyFor(version), String(time));
 		} catch {
 			/* Dismiss for this page even without storage. */
 		}
-		for (const widget of widgets()) {
-			const container =
-				widget.closest<HTMLElement>(".sidebar-widget") || widget;
-			container.style.display = "none";
-		}
+		refresh();
 	});
 	if (document.readyState === "loading")
 		document.addEventListener("DOMContentLoaded", refresh);

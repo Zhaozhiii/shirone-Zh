@@ -35,35 +35,38 @@ const version = createHash("sha256")
 ---
 
 {items.length > 0 && (
-	<WidgetLayout name={config.title || i18n(I18nKey.announcement)} id="announcement" class={className} style={style}>
-		<div class="announcement-wrapper flex flex-col gap-4" data-close-duration={String(config.closeDuration ?? 86400)} data-version={version}>
-			{items.map((item) => {
+	<widget-layout data-id="announcement" data-version={version} class:list={["flex flex-col gap-4", className]} style={style}>
+			{items.map((item, index) => {
 				const link = item.link;
 				const hasLink = link?.url && link.enable !== false;
 				const destination = announcementLink(link?.url || "", siteConfig.site);
 				const external = destination.external;
+				const itemVersion = createHash("sha256").update(JSON.stringify(item)).digest("hex");
 				return (
+					<div class="announcement-wrapper" data-close-duration={String(config.closeDuration ?? 86400)} data-version={itemVersion}>
+					<WidgetLayout name={config.title || i18n(I18nKey.announcement)} id={`announcement-${index}`}>
 					<article class="announcement-item flex flex-col gap-2">
-						{item.title && <p class="text-90 font-medium text-sm break-words">{item.title}</p>}
 						{item.tag && <span class="text-75 text-xs">{item.tag}</span>}
-						{item.date && <time class="text-75 text-xs">{item.date}</time>}
 						<p class="text-75 leading-relaxed break-words whitespace-pre-line text-sm">{item.content}</p>
+						{(hasLink || config.closable) && <div class="announcement-actions flex items-center justify-between gap-2">
 						{hasLink && <a href={!external && destination.href.startsWith("/") ? url(destination.href) : destination.href}
 							target={external ? "_blank" : undefined} rel={external ? "noopener noreferrer" : undefined}
-							class="announcement-btn self-start inline-flex items-center gap-1 px-3 py-1.5 text-xs font-medium rounded-[var(--shape-corner-s)] bg-[var(--btn-regular-bg)] text-[var(--primary)] hover:bg-[var(--btn-regular-bg-hover)] transition-colors">
+							class="announcement-btn m3-state-layer min-w-0 inline-flex items-center gap-1 px-3 py-1.5 text-xs font-medium rounded-[var(--shape-corner-s)] bg-[var(--btn-regular-bg)] text-[var(--primary)]">
 							<span>{link.text || i18n(I18nKey.more)}</span>
 							{external && <Icon name="material-symbols:arrow-outward-rounded" class="text-sm" aria-hidden="true" />}
 						</a>}
+						{config.closable && <button type="button" data-announcement-close
+							class="announcement-close-btn m3-state-layer ml-auto shrink-0 h-7 w-7 flex items-center justify-center rounded-[var(--shape-corner-s)] bg-[var(--btn-regular-bg)] text-75 cursor-pointer"
+							aria-label={i18n(I18nKey.announcementClose)} title={i18n(I18nKey.announcementClose)}>
+							<Icon name="material-symbols:close-rounded" class="text-base" aria-hidden="true" />
+						</button>}
+						</div>}
 					</article>
+					</WidgetLayout>
+					</div>
 				);
 			})}
-			{config.closable && <button type="button" data-announcement-close
-				class="announcement-close-btn self-end h-7 w-7 flex items-center justify-center rounded-[var(--shape-corner-s)] bg-[var(--btn-regular-bg)] text-75 hover:text-[var(--error)] cursor-pointer"
-				aria-label={i18n(I18nKey.announcementClose)} title={i18n(I18nKey.announcementClose)}>
-				<Icon name="material-symbols:close-rounded" class="text-base" aria-hidden="true" />
-			</button>}
-		</div>
-	</WidgetLayout>
+	</widget-layout>
 )}
 
 <script>
