@@ -65,6 +65,25 @@ test("time windows use Shanghai local times, include start, exclude end",t=>{
   note("expired.md",{type:"article",publish:true,unpublishAt:"2026-10-24T08:00",slug:"expired"},"Expired");
   build();assert.equal(files(join(root,"src/content/posts")).length,0);
 });
+
+test("moment publication accepts standard ISO timestamps and rejects informal time strings", t => {
+  const { root, note, build } = fixture(t);
+  note("动态/上线.md", {type:"moment", publish:true, slug:"launch", published:"2026-10-24T06:30:00+08:00"}, "Launch");
+  build();
+  assert.match(readFileSync(join(root,"src/content/moments/launch.md"),"utf8"), /published: 2026-10-24T06:30:00\+08:00/);
+  note("动态/上线.md", {type:"moment", publish:true, slug:"launch", published:"2026-10-24T06:30:45+08:00"}, "Launch");
+  build();
+  assert.match(readFileSync(join(root,"src/content/moments/launch.md"),"utf8"), /published: 2026-10-24T06:30:45\+08:00/);
+  for (const published of ["2026-10-24 06:30", "2026-10-24T06:30", "2026-10-24T06:30:00"]) {
+    note("动态/上线.md", {type:"moment", publish:true, published}, "Invalid");
+    assert.throws(build, /ISO/);
+  }
+  note("动态/上线.md", {type:"moment", publish:true, published:"2026-02-30T06:30:00+08:00"}, "Invalid");
+  assert.throws(build, /日期无效/);
+  note("动态/上线.md", {type:"moment", publish:false}, "Private");
+  note("文章.md", {type:"article", publish:true, published:"2026-10-24 06:30"}, "Article");
+  assert.throws(build, /YYYY-MM-DD/);
+});
 test("moving and retitling a note preserves its explicit slug; duplicates fail",t=>{
   const {source,root,note,build}=fixture(t);
   note("old.md",{type:"article",publish:true,slug:"stable",title:"Old"},"Body");build();

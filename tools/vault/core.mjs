@@ -221,10 +221,17 @@ export function validate(records) {
 		)
 			throw new Error(`${r.path}：相册列数须为 2、3 或 4`);
 		if (
-			["posts", "moments"].includes(r.domain) &&
+			r.domain === "posts" &&
 			!/^\d{4}-\d\d-\d\d$/.test(String(r.data.published))
 		)
 			throw new Error(`${r.path}：发布日期须为 YYYY-MM-DD`);
+		if (r.domain === "moments") {
+			if (
+				!/^\d{4}-\d\d-\d\d(?:T\d\d:\d\d:\d\d(?:\.\d+)?(?:Z|[+-]\d\d:\d\d))?$/.test(String(r.data.published))
+			)
+				throw new Error(`${r.path}：动态时间须为 YYYY-MM-DD 或带时区的 ISO 时间，例如 2026-10-24T06:30:00+08:00`);
+			instant(r.data.published, `${r.path}：动态时间`);
+		}
 	}
 	for (const domain of ["categories", "tags", "series"]) {
 		const list = records.filter((r) => r.domain === domain),
