@@ -17,6 +17,8 @@ import { parse, stringify } from "yaml";
 import { unified } from "unified";
 import remarkParse from "remark-parse";
 import { domains } from "./model.mjs";
+import { instant, normalizeTime, shanghaiDate } from "./time.mjs";
+export { instant } from "./time.mjs";
 import adapters from "./adapters.json" with { type: "json" };
 
 export const types = Object.freeze({
@@ -56,23 +58,6 @@ export function readNote(text) {
 export function noteText(data, body = "") {
 	return `---\n${stringify(data, { lineWidth: 0 }).trimEnd()}\n---\n\n${body.replace(/^\n+/, "")}`;
 }
-export function instant(value, label = "时间") {
-	if (value === undefined || value === null || value === "") return null;
-	let text = String(value);
-	const date = text.match(/^(\d{4})-(\d\d)-(\d\d)/);
-	if (
-		date &&
-		new Date(Date.UTC(Number(date[1]), Number(date[2]) - 1, Number(date[3])))
-			.toISOString()
-			.slice(0, 10) !== date[0]
-	)
-		throw new Error(`${label}日期无效`);
-	if (/^\d{4}-\d\d-\d\d$/.test(text)) text += "T00:00:00+08:00";
-	else if (/^\d{4}-\d\d-\d\dT\d\d:\d\d(?::\d\d)?$/.test(text)) text += "+08:00";
-	if (!/^\d{4}-\d\d-\d\dT/.test(text) || !Number.isFinite(Date.parse(text)))
-		throw new Error(`${label}格式无效`);
-	return new Date(text).toISOString();
-}
 export function visible(data, time) {
 	const start = instant(data.publishAt),
 		end = instant(data.unpublishAt);
@@ -105,16 +90,39 @@ export function readRecords(root) {
     data.key ??= data.slug || data.id || name;
     const slug = value => String(value).normalize("NFC").trim().replace(/[^\p{L}\p{N}_.\/-]+/gu,"-").replace(/^-+|-+$/g,"") || createHash("sha256").update(path).digest("hex").slice(0,16);
     if (["media","albums"].includes(domain)) data.key=slug(data.key).replaceAll("/","-").replaceAll(".","-");
+    let createdDate;
+    const creationDate = () => {
+      if (createdDate) return createdDate;
+      let created;
+      try {
+        created = execFileSync("git",["log","--follow","--diff-filter=A","--format=%aI","--",path],{cwd:root,encoding:"utf8",stdio:["ignore","pipe","pipe"]}).trim().split("\n").at(-1);
+      } catch { /* Uncommitted offline notes use their local creation time. */ }
+      createdDate = data.created ? normalizeTime(data.created, `${path}：创建日期`).slice(0,10) : shanghaiDate(created || statSync(file).birthtime);
+      return createdDate;
+    };
     if (["posts", "moments"].includes(domain)) {
       if (!data.published) {
-        let created;
-        try {
-          created = execFileSync("git",["log","--follow","--diff-filter=A","--format=%aI","--",path],{cwd:root,encoding:"utf8",stdio:["ignore","pipe","pipe"]}).trim().split("\n").at(-1);
-        } catch { /* A new offline note may not have a Git commit yet. */ }
-        data.published = String(data.publishAt || data.created || created || statSync(file).birthtime.toISOString()).slice(0,10);
+        data.published = data.publish === true ? (data.publishAt ? normalizeTime(data.publishAt, `${path}：发布时间`, creationDate).slice(0,10) : creationDate()) : String(data.created || statSync(file).birthtime.toISOString()).slice(0,10);
       }
       data.alias ??= slug(data.slug || data.id || name);
       if (domain === "posts") data.image ??= data.cover;
+    }
+    if (data.publish === true) {
+      if (data.published) {
+        const published = normalizeTime(data.published, `${path}：发布日期`, creationDate);
+        if (domain === "posts") {
+          data.published = published.slice(0,10);
+          if (published.includes("T")) data.publishedAt ||= published;
+        } else data.published = published;
+      }
+      const referenceDate = () => data.published?.slice(0,10) || creationDate();
+      const dateFields = ["publishAt", "unpublishAt", "publishedAt", "updatedAt", "updated"];
+      if (domains[domain]?.fields?.date?.[1] === "date") dateFields.push("date");
+      for (const field of dateFields) {
+        if (data[field] === undefined) continue;
+        if (data[field] === "" || data[field] === null) { delete data[field]; continue; }
+        data[field] = normalizeTime(data[field], `${path}：${field}`, field === "updatedAt" && data.updated ? () => normalizeTime(data.updated).slice(0,10) : referenceDate);
+      }
     }
     if (["movie", "book"].includes(data.type)) data.kind ??= data.type;
     if (domain === "devices") {
@@ -226,10 +234,6 @@ export function validate(records) {
 		)
 			throw new Error(`${r.path}：发布日期须为 YYYY-MM-DD`);
 		if (r.domain === "moments") {
-			if (
-				!/^\d{4}-\d\d-\d\d(?:T\d\d:\d\d:\d\d(?:\.\d+)?(?:Z|[+-]\d\d:\d\d))?$/.test(String(r.data.published))
-			)
-				throw new Error(`${r.path}：动态时间须为 YYYY-MM-DD 或带时区的 ISO 时间，例如 2026-10-24T06:30:00+08:00`);
 			instant(r.data.published, `${r.path}：动态时间`);
 		}
 	}

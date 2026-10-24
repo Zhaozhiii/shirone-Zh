@@ -66,7 +66,7 @@ test("time windows use Shanghai local times, include start, exclude end",t=>{
   build();assert.equal(files(join(root,"src/content/posts")).length,0);
 });
 
-test("moment publication accepts standard ISO timestamps and rejects informal time strings", t => {
+test("publication normalizes ISO and shorthand timestamps while keeping article calendar dates", t => {
   const { root, note, build } = fixture(t);
   note("动态/上线.md", {type:"moment", publish:true, slug:"launch", published:"2026-10-24T06:30:00+08:00"}, "Launch");
   build();
@@ -75,14 +75,27 @@ test("moment publication accepts standard ISO timestamps and rejects informal ti
   build();
   assert.match(readFileSync(join(root,"src/content/moments/launch.md"),"utf8"), /published: 2026-10-24T06:30:45\+08:00/);
   for (const published of ["2026-10-24 06:30", "2026-10-24T06:30", "2026-10-24T06:30:00"]) {
-    note("动态/上线.md", {type:"moment", publish:true, published}, "Invalid");
-    assert.throws(build, /ISO/);
+    note("动态/上线.md", {type:"moment", publish:true, slug:"launch", published}, "Launch");
+    build();
+    assert.match(readFileSync(join(root,"src/content/moments/launch.md"),"utf8"), /published: 2026-10-24T06:30:00\+08:00/);
   }
   note("动态/上线.md", {type:"moment", publish:true, published:"2026-02-30T06:30:00+08:00"}, "Invalid");
   assert.throws(build, /日期无效/);
   note("动态/上线.md", {type:"moment", publish:false}, "Private");
-  note("文章.md", {type:"article", publish:true, published:"2026-10-24 06:30"}, "Article");
-  assert.throws(build, /YYYY-MM-DD/);
+  note("文章.md", {type:"article", publish:true, slug:"article", published:"2026.10.24 6:3:5"}, "Article");
+  build();
+  const article = readFileSync(join(root,"src/content/posts/article.md"),"utf8");
+  assert.match(article, /published: 2026-10-24\n/);
+  assert.match(article, /publishedAt: 2026-10-24T06:03:05\+08:00/);
+});
+
+test("time-only publication uses the note date rather than the build day", t => {
+  const { source, root, note } = fixture(t);
+  note("动态/上线.md", {type:"moment", publish:true, slug:"launch", created:"2026.10.20", published:"3:13:15", publishAt:"3:0:0"}, "Launch");
+  for (const previewAt of ["2026-10-24T08:00:00+08:00", "2026-10-25T08:00:00+08:00"]) {
+    compileVault({sourceRoot:source,root,production:true,previewAt});
+    assert.match(readFileSync(join(root,"src/content/moments/launch.md"),"utf8"), /published: 2026-10-20T03:13:15\+08:00/);
+  }
 });
 test("moving and retitling a note preserves its explicit slug; duplicates fail",t=>{
   const {source,root,note,build}=fixture(t);
