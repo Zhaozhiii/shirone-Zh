@@ -85,6 +85,7 @@ interface SidebarWidgetBase {
 ## 6. SiteStats — 站点统计
 
 - **数据源**：`src/utils/site-stats.ts`（总字数、文章数、运行天数等备忘化计算）；
+- **运行天数**：配置 `site.establishedAt`（含时区的 ISO 时间）后按完整 24 小时累计，浏览器每分钟及恢复可见时更新；未配置时兼容最早文章日期。站点信息的构建时间也优先展示该固定时间。
 - **渲染**：`WidgetLayout` 外壳 + 键值对网格；
 - **页面范围**：通常在首页与归档页显示。
 

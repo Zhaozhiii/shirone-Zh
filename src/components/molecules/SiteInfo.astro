@@ -65,7 +65,8 @@ const domain = (() => {
 	}
 })();
 
-// 构建时间：站点时区 + 站点语言格式化到秒（时区非法时回退 ISO 日期）
+// 配置固定建站时间时保持不变；未配置时兼容当前构建时间。
+const siteBuiltAt = new Date(siteConfig.establishedAt ?? Date.now());
 const builtAt = (() => {
 	try {
 		return new Intl.DateTimeFormat(siteConfig.lang.replace("_", "-"), {
@@ -77,9 +78,9 @@ const builtAt = (() => {
 			second: "2-digit",
 			hour12: false,
 			timeZone: siteConfig.timeZone,
-		}).format(new Date());
+		}).format(siteBuiltAt);
 	} catch {
-		return new Date().toISOString().slice(0, 10);
+		return siteBuiltAt.toISOString().slice(0, 10);
 	}
 })();
 

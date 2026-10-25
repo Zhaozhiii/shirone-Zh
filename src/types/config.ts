@@ -118,6 +118,8 @@ export type SiteConfig = {
 
 	/** IANA time zone used to interpret precise content timestamps. */
 	timeZone: string;
+	/** 固定建站时间（含时区的 ISO 时间），用于构建时间展示与运行天数。 */
+	establishedAt?: string;
 
 	themeColor: {
 		hue: number;

@@ -4,6 +4,7 @@
  * 文章跑 render 提取 remark 字数，不做缓存会逐页重复开销）。
  */
 import { render } from "astro:content";
+import { siteConfig } from "@/config/siteConfig";
 import {
 	getCategoryList,
 	getMomentCount,
@@ -18,7 +19,7 @@ export interface SiteStats {
 	tags: number;
 	/** 全部文章 remark 字数之和 */
 	words: number;
-	/** 运行天数：以最早一篇文章的发布日为起点（无文章则 0） */
+	/** 运行天数：优先使用固定建站时间，未配置时兼容最早文章日期。 */
 	days: number;
 	/** 最近更新：全站最新一篇的发布/更新日（ISO 字符串；无文章为 null） */
 	lastActivity: string | null;
@@ -53,14 +54,17 @@ export async function getSiteStats(): Promise<SiteStats> {
 		latestActivity = Math.max(latestActivity, published, updated);
 	}
 
+	const start = siteConfig.establishedAt
+		? Date.parse(siteConfig.establishedAt)
+		: earliest;
 	cache = {
 		posts: posts.length,
 		moments,
 		categories: categories.length,
 		tags: tags.length,
 		words,
-		days: Number.isFinite(earliest)
-			? Math.max(0, Math.floor((Date.now() - earliest) / DAY_MS))
+		days: Number.isFinite(start)
+			? Math.max(0, Math.floor((Date.now() - start) / DAY_MS))
 			: 0,
 		lastActivity:
 			latestActivity > 0 ? new Date(latestActivity).toISOString() : null,
