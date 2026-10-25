@@ -1,5 +1,5 @@
 /** Persistent sidebar: refresh elapsed days without waiting for another build. */
-export function initSiteUptime() {
+export function initSiteUptime(): void {
 	const update = () => {
 		for (const element of document.querySelectorAll<HTMLElement>(
 			"[data-site-start]",
