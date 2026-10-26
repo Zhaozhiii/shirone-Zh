@@ -2,19 +2,6 @@ import Key from "../i18nKey-runtime.mjs";
 import type { Translation } from "../translation.ts";
 
 export const id: Translation = {
-	[Key.mdTask]: "Tugas",
-	[Key.mdReferenceUnpublished]: "Belum diterbitkan",
-	[Key.mdReferenceMissing]: "Referensi tidak valid",
-	[Key.mdReferenceAmbiguous]: "Referensi ambigu",
-	[Key.mdReferenceUnavailable]: "Referensi tidak tersedia",
-	[Key.mdEmbedProtected]: "Konten dilindungi. Buka halaman asli.",
-	[Key.mdEmbedLimit]: "Tidak dapat diperluas lagi",
-	[Key.mdEmbedUnpublished]: "Belum dipublikasikan",
-	[Key.mdEmbedMissing]: "Konten yang dirujuk tidak ada",
-	[Key.mdEmbedAmbiguous]: "Konten yang dirujuk tidak dapat ditentukan",
-	[Key.mdReferenceOpen]: "Buka halaman asli",
-	[Key.mdBacklinks]: "Tautan balik",
-
 	[Key.media]: "Film & Buku",
 	[Key.mediaDescription]: "Film yang saya tonton dan buku yang saya baca.",
 	[Key.mediaEmpty]: "Belum ada film atau buku.",

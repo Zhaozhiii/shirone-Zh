@@ -50,30 +50,23 @@ export function AdmonitionComponent(properties, children, type) {
 	const rootProperties = {
 		class: `admonition bdm-${type} m3-admonition not-prose`,
 		"data-admonition": type,
-		...(properties["callout-type"]
-			? { "data-callout": properties["callout-type"] }
-			: {}),
 	};
 	const body = content.length
 		? h("div", { class: "m3-admonition__body" }, content)
 		: null;
 
-	if (type === "details" || properties.fold) {
-		return h(
-			"details",
-			{ ...rootProperties, ...(properties.fold === "+" ? { open: true } : {}) },
-			[
-				h("summary", { class: "m3-admonition__header m3-state-layer" }, [
-					renderIndicator(),
-					h("span", { class: "bdm-title m3-admonition__title" }, renderedTitle),
-					h("span", {
-						class: "m3-admonition__chevron",
-						"aria-hidden": "true",
-					}),
-				]),
-				...(body ? [body] : []),
-			],
-		);
+	if (type === "details") {
+		return h("details", rootProperties, [
+			h("summary", { class: "m3-admonition__header m3-state-layer" }, [
+				renderIndicator(),
+				h("span", { class: "bdm-title m3-admonition__title" }, renderedTitle),
+				h("span", {
+					class: "m3-admonition__chevron",
+					"aria-hidden": "true",
+				}),
+			]),
+			...(body ? [body] : []),
+		]);
 	}
 
 	return h("aside", { ...rootProperties, role: "note" }, [

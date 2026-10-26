@@ -70,7 +70,7 @@ test("only literal publish=true and a supported type can publish, in any natural
 test("attachments are resolved relatively or by unique name, hashed and deduplicated; private siblings are absent",t=>{
   const {root,write,note,build}=fixture(t);
   write("附件/图片.png","PUBLIC_IMAGE_BYTES");write("附件/copy.png","PUBLIC_IMAGE_BYTES");write("附件/private.png","PRIVATE_IMAGE_BYTES");
-  note("学习/公开.md",{type:"article",publish:true,slug:"post",cover:"[[图片.png]]"},"![[图片.png|300]]\n\n![图](../附件/copy.png)\n\n`![[private.png]]`\n\n```md\n![[private.png]]\n```\n");
+  note("学习/公开.md",{type:"article",publish:true,slug:"post",cover:"[[图片.png]]"},"![图 w-50%](../附件/图片.png)\n\n![图](../附件/copy.png)\n\n`![[private.png]]`\n\n```md\n![[private.png]]\n```\n");
   build();
   const text=readFileSync(join(root,"src/content/posts/post.md"),"utf8");
   assert.match(text,/\/images\/vault\/[a-f0-9]{64}\.png/);
@@ -78,14 +78,14 @@ test("attachments are resolved relatively or by unique name, hashed and deduplic
   assert.equal(files(join(root,"public/images/vault")).length,1);
   assert.equal(readFileSync(files(join(root,"public/images/vault"))[0],"utf8"),"PUBLIC_IMAGE_BYTES");
 });
-test("wiki links resolve public notes and never transclude private Markdown",t=>{
+test("retired wiki syntax is left literal and never transcludes private Markdown",t=>{
   const {root,note,build}=fixture(t);
   note("个人笔记/私人.md",{},"PRIVATE_BODY_NEVER_PUBLISH_THIS");
   note("学习/A.md",{type:"article",publish:true,slug:"a"},"[[B|下一篇]] [[私人|补充笔记]]");
   note("学习/B.md",{type:"article",publish:true,slug:"b"},"B");build();
   const text=readFileSync(join(root,"src/content/posts/a.md"),"utf8");
   assert.match(text,/\[\[B\|下一篇\]\]/);assert.match(text,/补充笔记/);assert.doesNotMatch(text,/PRIVATE_BODY|私人\.md/);
-  note("学习/A.md",{type:"article",publish:true,slug:"a"},"![[私人.md]]");assert.doesNotThrow(build); assert.doesNotMatch(readFileSync(join(root,".vault-cache/markdown-index.json"),"utf8"),/PRIVATE_BODY/);
+  note("学习/A.md",{type:"article",publish:true,slug:"a"},"![[私人.md]]");const result = build(); assert.doesNotMatch([...result.outputs.values()].join(""),/PRIVATE_BODY/);
 });
 test("withdrawal and file deletion remove old pages, adapters and exclusive assets",t=>{
   const {source,root,write,note,build}=fixture(t);
@@ -188,15 +188,15 @@ test("moving and retitling a note preserves its explicit slug; duplicates fail",
 test("missing and ambiguous attachments invalidate only the reference",t=>{
   const {root,write,note,build}=fixture(t);
   note("a.md",{type:"article",publish:true,slug:"a"},"Valid content");build();
-  note("a.md",{type:"article",publish:true,slug:"a"},"![[missing.png]]");assert.doesNotThrow(build);
+  note("a.md",{type:"article",publish:true,slug:"a"},"![](missing.png)");assert.doesNotThrow(build);
   assert.match(readFileSync(join(root,"src/content/posts/a.md"),"utf8"),/missing.png/);
-  write("one/a.png","a");write("two/a.png","b");note("a.md",{type:"article",publish:true,slug:"a"},"![[a.png]]");assert.doesNotThrow(build);
+  write("one/a.png","a");write("two/a.png","b");note("a.md",{type:"article",publish:true,slug:"a"},"![](a.png)");assert.doesNotThrow(build);
 });
 test("non-note resources cannot escape the Vault or copy Markdown as attachments",t=>{
   const {root,note,write,build}=fixture(t);
   write("private.md","PRIVATE_BODY");
   for(const body of ["![[private.md]]","![x](../outside.png)","@include: ../../private.md","@[code-tree](../notes)",'::code-tree{dir="src/content/posts"}',':::code-tree{dir="src/content/posts"}\n:::']) {
-    note("a.md",{type:"article",publish:true,slug:"a"},body);const result=build();assert.equal(result.assetOutputs.size,0); assert.doesNotMatch(readFileSync(join(root,".vault-cache/markdown-index.json"),"utf8"),/PRIVATE_BODY/);
+    note("a.md",{type:"article",publish:true,slug:"a"},body);const result=build();assert.equal(result.assetOutputs.size,0); assert.doesNotMatch([...result.outputs.values()].join(""),/PRIVATE_BODY/);
   }
 });
 test("templates never publish and a dry-run leaves both Vault and build inputs intact",t=>{
@@ -277,7 +277,7 @@ test("a public album defaults to its first photo when no cover property is suppl
 test("album photos can be written as native Markdown with no YAML photo list",t=>{
   const {root,write,note,build}=fixture(t);
   write("附件/a.png","PHOTO_A");write("附件/b.png","PHOTO_B");
-  note("album.md",{type:"album",publish:true,key:"native"},"相册介绍\n\n![[a.png]]\n\n![第二张](附件/b.png)\n\n`![[private.png]]`");
+  note("album.md",{type:"album",publish:true,key:"native"},"相册介绍\n\n![](附件/a.png)\n\n![第二张](附件/b.png)\n\n`![[private.png]]`");
   build();const info=JSON.parse(readFileSync(join(root,"public/images/albums/native/info.json"),"utf8"));
   assert.equal(info.photos.length,2);assert.ok(info.cover);assert.equal(info.photos[1].alt,"第二张");
 });

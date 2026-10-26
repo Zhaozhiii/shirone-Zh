@@ -52,7 +52,7 @@ test("unchanged inputs preserve generated files and attachments; equal-sized edi
 	note(
 		"post.md",
 		{ type: "article", publish: true, slug: "post", date: "2026-01-01" },
-		"![[a.png]]\nFirst",
+		"![](附件/a.png)\nFirst",
 	);
 	assert.equal(build().changed, true);
 	const tracked = [

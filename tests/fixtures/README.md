@@ -1,5 +1,3 @@
-# Markdown fixtures
+# Markdown 验证
 
-`commonmark-0.31.2.json` is the unmodified official CommonMark 0.31.2 example corpus, downloaded from https://spec.commonmark.org/0.31.2/spec.json. The specification is by John MacFarlane and is licensed under [CC BY-SA 4.0](https://creativecommons.org/licenses/by-sa/4.0/). Source: [CommonMark 0.31.2](https://spec.commonmark.org/0.31.2/).
-
-`obsidian-markdown.md` is synthetic authoring and browser-test content. It contains no personal Vault content and is not automatically published.
+普通 Markdown、GFM、脚注及上游增强语法通过 `tests/plugins/markdown/commonmark.test.mjs` 直接调用生产处理器验收。本地附件和元数据通过 `tests/content/vault-markdown.test.mjs` 验证。

@@ -224,7 +224,6 @@ async function renderMoment(
 	momentsRendererPromise ??= siteMarkdownProcessor.createRenderer({});
 	const renderer = await momentsRendererPromise;
 	const { code } = await renderer.render(entry.body ?? "", {
-		context: { namespace: `moment-${entry.id}-` },
 		...(entry.filePath ? { fileURL: pathToFileURL(entry.filePath) } : {}),
 		frontmatter: entry.data as unknown as Record<string, unknown>,
 	});

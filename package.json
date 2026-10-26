@@ -90,8 +90,6 @@
     "astro": "7.2.6",
     "astro-expressive-code": "^0.44.1",
     "astro-icon": "^1.2.0",
-    "gemoji": "^8.1.0",
-    "github-slugger": "^2.0.0",
     "hast-util-from-html": "2.0.3",
     "hastscript": "^9.0.1",
     "katex": "^0.18.4",

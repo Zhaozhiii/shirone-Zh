@@ -2,19 +2,6 @@ import Key from "../i18nKey-runtime.mjs";
 import type { Translation } from "../translation.ts";
 
 export const tr: Translation = {
-	[Key.mdTask]: "Görev",
-	[Key.mdReferenceUnpublished]: "Yayımlanmadı",
-	[Key.mdReferenceMissing]: "Geçersiz başvuru",
-	[Key.mdReferenceAmbiguous]: "Belirsiz başvuru",
-	[Key.mdReferenceUnavailable]: "Başvuru kullanılamıyor",
-	[Key.mdEmbedProtected]: "Korumalı içerik. Asıl sayfayı açın.",
-	[Key.mdEmbedLimit]: "Daha fazla genişletilemiyor",
-	[Key.mdEmbedUnpublished]: "Henüz herkese açık değil",
-	[Key.mdEmbedMissing]: "Başvurulan içerik yok",
-	[Key.mdEmbedAmbiguous]: "Başvurulan içerik belirlenemiyor",
-	[Key.mdReferenceOpen]: "Asıl sayfayı aç",
-	[Key.mdBacklinks]: "Geri bağlantılar",
-
 	[Key.media]: "Filmler ve Kitaplar",
 	[Key.mediaDescription]: "İzlediğim filmler ve okuduğum kitaplar.",
 	[Key.mediaEmpty]: "Henüz film veya kitap yok.",

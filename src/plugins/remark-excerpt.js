@@ -1,4 +1,5 @@
-import { visibleText } from "./markdown/core/visible-text.mjs";
+// biome-ignore lint/suspicious/noShadowRestrictedNames: <toString from mdast-util-to-string>
+import { toString } from "mdast-util-to-string";
 
 /* Use the post's first paragraph as the excerpt */
 export function remarkExcerpt() {
@@ -8,7 +9,7 @@ export function remarkExcerpt() {
 			if (node.type !== "paragraph") {
 				continue;
 			}
-			excerpt = visibleText(node);
+			excerpt = toString(node);
 			break;
 		}
 		data.astro.frontmatter.excerpt = excerpt;

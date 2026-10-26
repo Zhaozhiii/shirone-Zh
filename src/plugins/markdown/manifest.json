@@ -83,11 +83,6 @@
 			"styles": ["src/styles/mermaid.css"]
 		},
 		{
-			"id": "obsidian",
-			"syntaxes": ["obsidian"],
-			"styles": ["src/styles/markdown/obsidian.css"]
-		},
-		{
 			"id": "option-groups",
 			"syntaxes": ["option-groups"],
 			"styles": ["src/styles/markdown/option-groups.css"]
@@ -228,7 +223,7 @@
 			"status": "stable",
 			"category": "container",
 			"source": "integration",
-			"summary": "使用容器指令、GitHub Alert 或 Obsidian Callout 表达提示信息，沿用 Shirone 视觉并使用原生 details 折叠。",
+			"summary": "使用容器指令或 GitHub alert blockquote 表达提示信息，并使用原生 details 提供可折叠补充内容。",
 			"forms": [
 				{
 					"kind": "container-directive",
@@ -242,15 +237,15 @@
 				},
 				{
 					"kind": "blockquote",
-					"pattern": "> [!<TYPE>][+|-] 可选 Markdown 标题",
-					"example": "> [!success]- **可折叠标题**\n> 正文"
+					"pattern": "> [!<TYPE>]",
+					"example": "> [!NOTE]\n> 正文"
 				}
 			],
 			"attributes": [
 				{
 					"name": "type",
 					"required": true,
-					"values": "directive: note | info | tip | important | warning | caution | details; native Callout: all built-in Obsidian types and aliases, custom types use note visuals",
+					"values": "note | info | tip | important | warning | caution | details",
 					"default": null
 				},
 				{
@@ -274,17 +269,14 @@
 				"modules": [],
 				"network": []
 			},
-			"docs": ["docs/markdown-extensions.md", "docs/obsidian-markdown.md"],
+			"docs": ["docs/markdown-extensions.md"],
 			"tests": [
 				"tests/plugins/markdown/containers/admonitions.test.mjs",
-				"tests/site/admonitions.spec.ts",
-				"tests/plugins/markdown/obsidian.test.mjs",
-				"tests/site/obsidian-markdown.spec.ts"
+				"tests/site/admonitions.spec.ts"
 			],
 			"notes": [
 				"方括号标题、空格标题与 GitHub Alert 统一进入同一 Admonition renderer。",
-				"details 使用原生 disclosure，无 hydration、客户端模块或网络请求。",
-				"原生 Callout 支持嵌套、仅标题及 Markdown 标题；+ 默认展开，- 默认折叠。"
+				"details 使用原生 disclosure，无 hydration、客户端模块或网络请求。"
 			]
 		},
 		{
@@ -1145,50 +1137,6 @@
 			"tests": ["tests/site/mermaid.spec.ts"],
 			"notes": [
 				"客户端脚本与样式仅在页面含 Mermaid 语法时按需加载；初始化必须覆盖直接加载、Swup、主题变化和文章解密。"
-			]
-		},
-		{
-			"id": "obsidian",
-			"name": "Obsidian Markdown",
-			"status": "stable",
-			"category": "inline-extension",
-			"source": "shirone",
-			"summary": "Obsidian links, transclusions, media, comments, inline footnotes, scripts and tags with Shirone visuals.",
-			"forms": [
-				{
-					"kind": "inline-extension",
-					"pattern": "[[note|label]], ![[note#heading]], %%comment%%, ^[footnote], ~sub~, ^sup^",
-					"example": "[[Note|Read more]]\n\n![[Note#Section]]\n\nH~2~O x^2^ ^[Inline footnote]"
-				}
-			],
-			"attributes": [],
-			"implementation": [
-				"src/plugins/markdown/core/obsidian-syntax.mjs",
-				"src/plugins/markdown/core/obsidian.mjs",
-				"src/plugins/markdown/remark-obsidian.mjs",
-				"src/plugins/markdown/rehype-obsidian.mjs",
-				"src/utils/markdown-context.mjs",
-				"src/plugins/markdown/core/obsidian-references.mjs"
-			],
-			"registeredIn": "src/utils/markdown-processor.mjs",
-			"styles": ["src/styles/markdown/obsidian.css"],
-			"runtime": {
-				"mode": "native",
-				"modules": [],
-				"network": [
-					"Explicit image, audio, video and PDF URLs authored in public content."
-				]
-			},
-			"docs": ["docs/obsidian-markdown.md"],
-			"tests": [
-				"tests/plugins/markdown/obsidian.test.mjs",
-				"tests/content/vault-markdown.test.mjs",
-				"tests/site/obsidian-markdown.spec.ts"
-			],
-			"notes": [
-				"CommonMark strict line breaks; no Obsidian theme CSS.",
-				"Reference errors invalidate only the reference; private and out-of-root content is never transcluded.",
-				"KaTeX remains the only math renderer."
 			]
 		},
 		{

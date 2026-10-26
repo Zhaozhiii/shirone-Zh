@@ -1,38 +1,44 @@
-# Markdown 重构验收记录
+# Shirone 上游 Markdown 恢复验收
 
-验收日期：2026-10-25（北京时间）。本轮仅修改源码与构建生成物，未修改原始 Vault 笔记、提交 Git 或部署线上。
+验收日期：2026-10-26（北京时间）。仅修改源码、测试和开发文档；原始 Vault 笔记和当前文章文件均未改动。生产发布通过现有 GitHub Actions 流程执行，最终部署状态以该次工作流及线上 `/healthz` 的源码版本为准。
+
+## 基准与范围
+
+基准为已配置的 `upstream/main`：`fqzlr/shirone-fq` 的 `dbf6e0b`。直接用 Git 比较确认以下生产入口与上游无差异：
+
+- `src/plugins/` 整个目录，包括图片增强、提示框、语法清单和所有原生组件；
+- `src/utils/markdown-processor.mjs` 及类型声明；
+- `src/utils/markdown-source-syntaxes.mjs` 及类型声明；
+- `src/utils/feed.ts`；
+- `src/integration/index.ts`。
+
+删除 Obsidian tokenizer、语法转换、引用索引、递归嵌入、反向链接、正文标签提取、专用 CSS 和额外公式/图片后处理。普通图片宽度、图注和原生提示框完全由上游实现拥有。元数据及本地附件发布仍在内容层处理，不把兼容插件接回正文链。
 
 ## 验证结果
 
 | 项目 | 结果 |
 | --- | --- |
-| 相关 Node 回归 | 191 项通过，0 失败；覆盖现有插件、引用、嵌入、资源、Vault 发布、元数据和内容目录适配 |
-| CommonMark 基线 | 使用官方 0.31.2 的 652 条示例；其中 615 条不涉及新增扩展定界符的示例验证基础 AST 不变，其余语法冲突由扩展用例单独覆盖；不宣称全部示例逐字 HTML 一致 |
-| 浏览器 | 11 项通过，使用仓库 Playwright 配置、单 worker 和本机 Edge |
-| 无障碍 | 扩展示例 axe 扫描通过；首页、首页网格和动态页浅深色共 6 项扫描通过 |
-| 原有视觉 | 代表性标题、段落、列表、引用、提示框、表格、KaTeX 和代码块在浅深色下，对照引入 Obsidian 阶段前后的计算样式和几何一致；没有整体替换 Typography 或引入 Obsidian CSS |
-| 导航与降级 | 原生提示、键盘操作、无 JavaScript、窄屏、Swup 替换及后退通过；离开消费者后移除 Obsidian 条件样式 |
-| Mermaid | 流程、时序、类、状态、甘特、ER、饼图、旅程和思维导图均通过现有运行时渲染为 SVG |
-| Astro Check | 0 errors、0 warnings；保留两条原有 hints：PostCard 的未使用 updated 和文章 img onerror 属性的 src 分析提示 |
+| Markdown、内容和工具 Node 回归 | 共 320 个不同用例完成验证；首轮 319 项通过，修正一个测试夹具的相对路径后，其所属 7 项全部重跑通过 |
+| 部署与工作流 Node 回归 | 10 项通过 |
+| 普通 Markdown | 真实生产处理器验证标题、段落、强调、删除线、代码、列表、引用、分隔线、链接、GFM 表格/任务和脚注 |
+| 原生增强语法 | 图片宽度与图注、GitHub alert、details、KaTeX、Mermaid；既有容器、代码和媒体插件测试通过 |
+| 本地附件 | 中文路径、空格、`%20`、相对路径、引用式图片、普通文章链接、PDF 片段、去重；代码示例和未使用的相邻附件不复制 |
+| 元数据 | 标题、发布日期、封面、标签、分类、草稿、`visible: false` 和 `hidden: true` 通过；正文标签不再覆盖 YAML |
+| 浏览器 | 4 项通过：直接加载、灯箱/Mermaid/代码/公式/图注、Swup 离开与后退、窄屏、浅深色切换、禁用 JavaScript 的 SSR 与原生键盘折叠；SSR 项针对减少动画环境重跑通过 |
+| 无障碍 | 首页、首页网格、归档、动态、关于、分类索引、标签索引的浅深色共 14 项通过 |
+| Astro check | 0 errors、0 warnings，保留两条既有 hints（PostCard 的 unused updated 和文章 img onerror 的 src 分析提示） |
 | TypeScript | `tsc --noEmit --isolatedDeclarations` 通过 |
-| Biome | `biome ci ./src` 检查 443 个文件通过 |
-| Manifest | atoms、Markdown 和 skills 清单校验通过 |
-| 生产构建 | 完整 `pnpm run build` 通过，包括内容同步、字体、Astro、发布物处理、Pagefind 和 dist 检查 |
-| 发布隐私 | `node tools/vault/verify-dist.mjs ../Obsidian-Vault dist` 通过 |
-| 补丁检查 | `git diff --check` 通过 |
+| Biome | `biome ci ./src` 检查 437 个文件通过；新增测试及内容发布代码专项检查通过 |
+| 清单 | atoms、Markdown 和 skills 清单校验通过 |
+| 生产构建 | 隔离目录完整运行 `pnpm build` 通过，包含内容同步、字体、Astro、Pagefind 和 dist 检查 |
+| 产物图片 | 34 个 HTML 页面、53 处本地图片引用，缺失图片 0 |
+| 发布隐私 | `tools/vault/verify-dist.mjs` 通过 |
+| 原始文件 | 对 Vault Markdown 和当前 `src/content` Markdown 分别逐一比对 SHA-256，均未改变 |
 
-## 关键行为
+## 验收环境与边界
 
-- 未公开、私人、越界、缺失附件、歧义及循环引用均不阻止发布，只替换对应引用。
-- 未公开链接保留作者写入的文字，原生交互提示“未发布”；嵌入提示“暂未公开”。越界目标在读取前拒绝，不复制受限制资源。
-- 嵌入按来源解析附件，重复实例隔离标题、块和脚注 ID；指向嵌入选区之外的链接返回来源笔记。
-- 动态同页的独立 Markdown 片段也隔离标题、脚注和提示框 ID，避免跨条目冲突。
-- 标题锚点、块 ID、HTML 显式锚点、别名、编码路径、百分号和附件片段有专项用例。
-- KaTeX 保留原有外观与资源；宏按文档隔离，同篇支持共享定义。RSS 复用解析和引用结果后降级，不再单独使用 MarkdownIt。
-- 注释从正文及公开结构化卡片描述中移除；不收集注释中的附件。原始 Vault 始终只读。
+生产构建和浏览器运行于 `D:/Projects/Blog/.diagnostics/upstream-restore-20261026`。使用仓库 Playwright 配置、单 worker、Edge；验收副本通过依赖目录链接复用已安装的软件包，因此仅在该副本中增加 Vite 文件允许路径。正式配置未改变。
 
-## 兼容边界
+浏览器用例使用临时的合成文章和 SVG，开始前确认路径未占用，等待 Astro 收录，结束后删除。代码块外观仍由 Astro Expressive Code 集成负责；离线渲染器不自行复制其集成配置。订阅源恢复上游原有 MarkdownIt 路径。
 
-公式以 KaTeX 的能力为准，不执行 MathJax 专属命令、Dataview、Templater 或任意脚本。完整语法说明与限制见 [Obsidian Markdown](obsidian-markdown.md)。
-
-npm 模式已通过默认源码目录、`shirones/content` 和自定义内容目录三类适配测试；独立的 npm 打包发布流水线不在本次本机验收范围内。视觉验收覆盖代表性组件及当前站点页面，不将其表述为所有文章的逐像素穷举验收。
+现有 Obsidian 专用写法按上游结果显示，不自动迁移文章。独立 npm 发布流水线未执行；本轮验证了 integration 与上游一致及源码、包模式默认目录和自定义目录下的渲染入口。此轮验收覆盖代表性正文与当前站点页面，不宣称所有文章逐像素相同。

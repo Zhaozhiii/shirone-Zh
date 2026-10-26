@@ -1,16 +1,13 @@
-import { pathToFileURL } from "node:url";
 import I18nKey from "@i18n/i18nKey";
 import { i18n } from "@i18n/translation";
 import { getPublishedInstant, getUpdatedInstant } from "@utils/content-date";
 import { getSortedPosts } from "@utils/content-utils";
-import { siteMarkdownProcessor } from "@utils/markdown-processor";
 import { isEncryptedPost } from "@utils/post-encryption";
 import { getPostUrl } from "@utils/url-utils";
+import MarkdownIt from "markdown-it";
 import sanitizeHtml from "sanitize-html";
 
-let rendererPromise:
-	| ReturnType<typeof siteMarkdownProcessor.createRenderer>
-	| undefined;
+const parser = new MarkdownIt();
 
 export interface FeedPostItem {
 	id: string;
@@ -65,62 +62,46 @@ export function stripInvalidXmlChars(str: string): string {
 export async function getFeedPosts(site: URL): Promise<FeedPostItem[]> {
 	const blog = await getSortedPosts();
 
-	return Promise.all(
-		blog.map(async (post) => {
-			const isEncrypted = isEncryptedPost(post.data);
-			let contentHtml: string;
+	return blog.map((post) => {
+		const isEncrypted = isEncryptedPost(post.data);
+		let contentHtml: string;
 
-			if (isEncrypted) {
-				const notice = i18n(I18nKey.postRssEncryptedNotice);
-				contentHtml = `<p><em>🔒 ${notice}</em></p>`;
-			} else {
-				const isMdx =
-					post.filePath?.endsWith(".mdx") || post.id.endsWith(".mdx");
-				const rawContent =
-					typeof post.body === "string" ? post.body : String(post.body || "");
-				const contentToRender = isMdx
-					? sanitizeMdxForFeed(rawContent) || post.data.description || ""
-					: rawContent;
-				const cleanedContent = stripInvalidXmlChars(contentToRender);
-				rendererPromise ??= siteMarkdownProcessor.createRenderer({});
-				const rendered = await (await rendererPromise).render(cleanedContent, {
-					...(post.filePath ? { fileURL: pathToFileURL(post.filePath) } : {}),
-					frontmatter: post.data as unknown as Record<string, unknown>,
-					context: { target: "feed" },
-				});
-				contentHtml = sanitizeHtml(rendered.code, {
-					allowedTags: sanitizeHtml.defaults.allowedTags.concat([
-						"img",
-						"details",
-						"summary",
-						"mark",
-						"sub",
-						"sup",
-					]),
-				});
-			}
+		if (isEncrypted) {
+			const notice = i18n(I18nKey.postRssEncryptedNotice);
+			contentHtml = `<p><em>🔒 ${notice}</em></p>`;
+		} else {
+			const isMdx = post.filePath?.endsWith(".mdx") || post.id.endsWith(".mdx");
+			const rawContent =
+				typeof post.body === "string" ? post.body : String(post.body || "");
+			const contentToRender = isMdx
+				? sanitizeMdxForFeed(rawContent) || post.data.description || ""
+				: rawContent;
+			const cleanedContent = stripInvalidXmlChars(contentToRender);
+			contentHtml = sanitizeHtml(parser.render(cleanedContent), {
+				allowedTags: sanitizeHtml.defaults.allowedTags.concat(["img"]),
+			});
+		}
 
-			const postUrl = new URL(getPostUrl(post), site).href;
-			const pubDate = getPublishedInstant(post.data);
-			const updated = getUpdatedInstant(post.data);
+		const postUrl = new URL(getPostUrl(post), site).href;
+		const pubDate = getPublishedInstant(post.data);
+		const updated = getUpdatedInstant(post.data);
 
-			return {
-				id: post.id,
-				title: isEncrypted ? `🔒 ${post.data.title}` : post.data.title,
-				link: postUrl,
-				pubDate,
-				updated,
-				description:
-					isEncrypted && post.data.hideHomeContent
-						? i18n(I18nKey.postEncryptedSummary)
-						: post.data.description || "",
-				contentHtml,
-				category: post.data.category || undefined,
-				tags: post.data.tags || [],
-				isEncrypted,
-			};
-		}),
-	);
+		return {
+			id: post.id,
+			title: isEncrypted ? `🔒 ${post.data.title}` : post.data.title,
+			link: postUrl,
+			pubDate,
+			updated,
+			description:
+				isEncrypted && post.data.hideHomeContent
+					? i18n(I18nKey.postEncryptedSummary)
+					: post.data.description || "",
+			contentHtml,
+			category: post.data.category || undefined,
+			tags: post.data.tags || [],
+			isEncrypted,
+		};
+	});
 }
 
 export interface BuildAtomXmlOptions {

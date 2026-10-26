@@ -2,19 +2,6 @@ import Key from "../i18nKey-runtime.mjs";
 import type { Translation } from "../translation.ts";
 
 export const ko: Translation = {
-	[Key.mdTask]: "작업",
-	[Key.mdReferenceUnpublished]: "미공개",
-	[Key.mdReferenceMissing]: "잘못된 참조",
-	[Key.mdReferenceAmbiguous]: "모호한 참조",
-	[Key.mdReferenceUnavailable]: "참조할 수 없음",
-	[Key.mdEmbedProtected]: "보호된 콘텐츠입니다. 원문에서 확인하세요.",
-	[Key.mdEmbedLimit]: "더 펼칠 수 없음",
-	[Key.mdEmbedUnpublished]: "아직 공개되지 않음",
-	[Key.mdEmbedMissing]: "참조한 콘텐츠가 없음",
-	[Key.mdEmbedAmbiguous]: "참조한 콘텐츠를 확인할 수 없음",
-	[Key.mdReferenceOpen]: "원문 보기",
-	[Key.mdBacklinks]: "백링크",
-
 	[Key.media]: "영화와 책",
 	[Key.mediaDescription]: "감상한 영화와 읽은 책.",
 	[Key.mediaEmpty]: "등록된 영화나 책이 없습니다.",

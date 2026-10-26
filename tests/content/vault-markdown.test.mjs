@@ -1,76 +1,151 @@
 import assert from "node:assert/strict";
-import { mkdtempSync, mkdirSync, readFileSync, rmSync, writeFileSync, existsSync } from "node:fs";
+import {
+	mkdirSync,
+	mkdtempSync,
+	readFileSync,
+	rmSync,
+	writeFileSync,
+} from "node:fs";
 import { tmpdir } from "node:os";
 import { dirname, join } from "node:path";
 import { test } from "node:test";
-import { compileVault, noteText } from "../../tools/vault/core.mjs";
-import { createNoteIndex } from "../../src/plugins/markdown/core/obsidian.mjs";
 import { siteMarkdownProcessor } from "../../src/utils/markdown-processor.mjs";
+import { compileVault, noteText, readNote } from "../../tools/vault/core.mjs";
 
 function fixture(t) {
 	const root = mkdtempSync(join(tmpdir(), "markdown-vault-"));
 	t.after(() => rmSync(root, { recursive: true, force: true }));
-	const sourceRoot = join(root, "vault"); mkdirSync(sourceRoot);
-	const write = (path, value) => { const target = join(sourceRoot, path); mkdirSync(dirname(target), { recursive: true }); writeFileSync(target, value); };
-	const note = (path, properties, body) => write(path, noteText(properties, body));
-	const build = () => compileVault({ sourceRoot, root, previewAt: "2026-10-25T00:00:00+08:00" });
+	const sourceRoot = join(root, "vault");
+	mkdirSync(sourceRoot);
+	const write = (path, value) => {
+		const target = join(sourceRoot, path);
+		mkdirSync(dirname(target), { recursive: true });
+		writeFileSync(target, value);
+	};
+	const note = (path, properties, body) =>
+		write(path, noteText(properties, body));
+	const build = () =>
+		compileVault({
+			sourceRoot,
+			root,
+			dryRun: true,
+			previewAt: "2026-10-25T00:00:00+08:00",
+		});
 	return { root, sourceRoot, write, note, build };
 }
-
-test("escaped aliases retain original moment syntax and generate canonical links and backlinks", async (t) => {
-	const { root, note, build } = fixture(t);
-	note("博客/博客设计.md", { type: "article", publish: true, slug: "design" }, "# Design");
-	const source = "新版博客上线了，详情见[[博客/博客设计\\|设计文档]]。";
-	note("动态/上线.md", { type: "moment", publish: true }, source);
+test("native attachments resolve Chinese paths, encoded spaces, references and links without rewriting prose", async (t) => {
+	const { write, note, build, sourceRoot } = fixture(t);
+	write("附件/Pasted image 20261026185132.png", "PUBLIC_IMAGE");
+	write("附件/manual.pdf", "PUBLIC_PDF");
+	write("附件/private.png", "PRIVATE_IMAGE");
+	note(
+		"博客/适配演示.md",
+		{ type: "article", publish: true, slug: "target" },
+		"Target",
+	);
+	const body =
+		'[查看](博客/适配演示.md)\n![](附件/Pasted%20image%2020261026185132.png)\n\n![图 w-50%](<附件/Pasted image 20261026185132.png> "图注")\n\n![引用][photo]\n\n[photo]: 附件/Pasted%20image%2020261026185132.png "引用图注"\n\n[下载](附件/manual.pdf#page=2)\n\n`![](附件/private.png)`\n\n```md\n![](附件/private.png)\n```\n\n> [!NOTE]\n> Upstream alert\n\n[[literal]] %%literal%% ^[literal] #literal';
+	note("post.md", { type: "article", publish: true, slug: "post" }, body);
+	const before = readFileSync(join(sourceRoot, "post.md"), "utf8");
 	const result = build();
 	assert.deepEqual(result.diagnostics, []);
-	const data = JSON.parse(readFileSync(join(root, ".vault-cache/markdown-index.json"), "utf8"));
-	const moment = data.notes.find(({ path }) => path === "动态/上线.md");
-	assert.ok(moment.body.includes(source));
-	assert.equal(data.backlinks["博客/博客设计.md"][0].url, moment.url);
-	const r = await siteMarkdownProcessor.createRenderer({});
-	const { code, diagnostics } = await r.render(moment.body, { context: { index: createNoteIndex(data.notes), current: moment.path, namespace: "moment-launch-" } });
-	assert.deepEqual(diagnostics, []);
-	assert.match(code, /href="\/posts\/design\/">设计文档<\/a>/);
+	assert.equal(result.assetOutputs.size, 2);
+	const { body: output } = readNote(
+		result.outputs.get("src/content/posts/post.md"),
+	);
+	const image = [...result.assetOutputs.keys()]
+		.find((p) => p.endsWith(".png"))
+		.slice("public".length);
+	const pdf = [...result.assetOutputs.keys()]
+		.find((p) => p.endsWith(".pdf"))
+		.slice("public".length);
+	assert.equal(
+		output.trim(),
+		body
+			.replaceAll("博客/适配演示.md", "/posts/target/")
+			.replaceAll("附件/Pasted%20image%2020261026185132.png", image)
+			.replaceAll("附件/Pasted image 20261026185132.png", image)
+			.replace("附件/manual.pdf", pdf),
+	);
+	assert.equal(readFileSync(join(sourceRoot, "post.md"), "utf8"), before);
+	const { code } = await (
+		await siteMarkdownProcessor.createRenderer({})
+	).render(output);
+	assert.match(code, /markdown-image-caption/);
+	assert.match(code, /width: 50%/);
+	assert.match(code, /data-admonition="note"/);
+	assert.doesNotMatch(code, /obsidian-|PRIVATE_IMAGE/);
 });
-test("all reference failures publish other content without reading or copying restricted targets", async (t) => {
-	const { root, note, write, build } = fixture(t);
-	note("私人.md", {}, "PRIVATE_SENTINEL_NEVER_PUBLISH");
-	note("文章/A.md", { type: "article", publish: true, slug: "a" }, "BEFORE [[私人|Go]] ![[私人]] ![[missing.png]] ![[../../../outside.png]] AFTER");
+test("YAML controls title, date, image, tags, category, drafts and visibility", (t) => {
+	const { write, note, build } = fixture(t);
+	write("附件/cover.png", "COVER");
+	note(
+		"post.md",
+		{
+			type: "article",
+			publish: true,
+			slug: "post",
+			title: "标题",
+			published: "2026-10-24T03:04:05+08:00",
+			image: "附件/cover.png",
+			tags: ["A", "B"],
+			category: "分类",
+		},
+		"#body-tag\n\nBody",
+	);
+	for (const [slug, state] of Object.entries({
+		draft: { draft: true },
+		hidden: { hidden: true },
+		invisible: { visible: false },
+		unpublished: { publish: false },
+	}))
+		note(
+			`${slug}.md`,
+			{ type: "article", publish: true, slug, ...state },
+			"PRIVATE_BODY",
+		);
 	const result = build();
-	assert.ok(result.diagnostics.length >= 3);
-	const data = JSON.parse(readFileSync(join(root, ".vault-cache/markdown-index.json"), "utf8"));
-	assert.doesNotMatch(JSON.stringify(data), /PRIVATE_SENTINEL/);
+	const { data } = readNote(result.outputs.get("src/content/posts/post.md"));
+	assert.equal(data.title, "标题");
+	assert.equal(data.published, "2026-10-24");
+	assert.equal(data.publishedAt, "2026-10-24T03:04:05+08:00");
+	assert.match(data.image, /^\/images\/vault\/[a-f0-9]{64}\.png$/);
+	assert.deepEqual(data.tags, ["A", "B"]);
+	assert.equal(data.category, "分类");
+	assert.equal(
+		[...result.outputs.keys()].filter((p) => p.startsWith("src/content/posts/"))
+			.length,
+		1,
+	);
+	assert.doesNotMatch([...result.outputs.values()].join(""), /PRIVATE_BODY/);
+});
+test("body syntax and unused attachments are left alone, including retired Obsidian forms", (t) => {
+	const { write, note, build } = fixture(t);
+	write("附件/wiki.png", "UNUSED_IMAGE");
+	const body =
+		"[[Other]] ![[附件/wiki.png|300]] %%text%%\n\n> [!custom]- Title\n> Body\n\n$math$\n\n:::note\nNative\n:::";
+	note("post.md", { type: "article", publish: true, slug: "post" }, body);
+	const result = build();
 	assert.equal(result.assetOutputs.size, 0);
-	const index = createNoteIndex(data.notes, { resolveAsset: (value, origin) => data.assets[`${origin}\0${value}`] });
-	const r = await siteMarkdownProcessor.createRenderer({});
-	const { code } = await r.render(data.notes.find(({ public: visible }) => visible).body, { context: { current: "文章/A.md", index } });
-	assert.match(code, /BEFORE/); assert.match(code, /AFTER/); assert.match(code, /data-reference-status="unpublished"/); assert.match(code, /popover="auto"/);
-	assert.doesNotMatch(code, /PRIVATE_SENTINEL|href=".*私人/);
+	assert.equal(
+		readNote(result.outputs.get("src/content/posts/post.md")).body.trim(),
+		body,
+	);
+	assert.equal(result.outputs.has(".vault-cache/markdown-index.json"), false);
 });
-test("selected nested embeds collect source-relative attachments and direct backlinks only", (t) => {
-	const { root, note, write, build } = fixture(t);
-	write("笔记/图 片.png", "PUBLIC_IMAGE"); write("笔记/private.png", "UNUSED_ATTACHMENT");
-	note("A.md", { type: "article", publish: true, slug: "a" }, "![[笔记/B#公开节]]");
-	note("笔记/B.md", { type: "article", publish: true, slug: "b", aliases: ["别名"], cssclasses: ["wide"], custom: { keep: true } }, "# 公开节\n![[图 片.png|300]]\n\n# 其他节\n%%![[private.png]]%%");
+test("resource failures are local and never publish a private note as an attachment", (t) => {
+	const { note, build } = fixture(t);
+	note("private.md", {}, "PRIVATE_SENTINEL");
+	note(
+		"post.md",
+		{ type: "article", publish: true, slug: "post" },
+		"BEFORE ![](../outside.png) ![](missing.png) [private](private.md) AFTER",
+	);
 	const result = build();
-	assert.equal(result.assetOutputs.size, 1);
-	const data = JSON.parse(readFileSync(join(root, ".vault-cache/markdown-index.json"), "utf8"));
-	assert.deepEqual(data.backlinks["笔记/B.md"], [{ title: "A", url: "/posts/a/" }]);
-	assert.equal(data.backlinks["A.md"], undefined);
-	assert.equal(data.notes.find(({ path }) => path === "笔记/B.md").properties.aliases[0], "别名");
-	note("笔记/B.md", { type: "article", publish: false, slug: "b" }, "WITHDRAWN_SECRET");
-	const next = build(); assert.equal(next.assetOutputs.size, 0);
-	assert.equal(existsSync(join(root, "src/content/posts/b.md")), false);
-	assert.doesNotMatch(readFileSync(join(root, ".vault-cache/markdown-index.json"), "utf8"), /WITHDRAWN_SECRET/);
-});
-
-test("comments never enter structured-card descriptions and encoded percent filenames resolve once", (t) => {
-	const { root, note, write, build } = fixture(t);
-	write("附件/100%.png", "IMAGE_PERCENT"); write("附件/a#b.png", "IMAGE_HASH");
-	note("device.md", { type: "device", publish: true, name: "Device" }, "Visible %%COMMENT_NOT_PUBLIC%% description");
-	note("post.md", { type: "article", publish: true, slug: "special" }, "![[附件/100%25.png]] ![[附件/a%23b.png]] #知识/Markdown");
-	const result = build(); assert.equal(result.assetOutputs.size, 2);
-	assert.doesNotMatch(readFileSync(join(root, "src/data/devices.ts"), "utf8"), /COMMENT_NOT_PUBLIC/);
-	assert.match(readFileSync(join(root, "src/content/posts/special.md"), "utf8"), /知识\/Markdown/);
+	assert.equal(result.assetOutputs.size, 0);
+	assert.equal(result.diagnostics.length, 3);
+	assert.doesNotMatch(
+		[...result.outputs.values()].join(""),
+		/PRIVATE_SENTINEL/,
+	);
 });

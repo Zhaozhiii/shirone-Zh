@@ -2,19 +2,6 @@ import Key from "../i18nKey-runtime.mjs";
 import type { Translation } from "../translation.ts";
 
 export const en: Translation = {
-	[Key.mdTask]: "Task",
-	[Key.mdReferenceUnpublished]: "Unpublished",
-	[Key.mdReferenceMissing]: "Broken reference",
-	[Key.mdReferenceAmbiguous]: "Ambiguous reference",
-	[Key.mdReferenceUnavailable]: "Reference unavailable",
-	[Key.mdEmbedProtected]: "Protected content. Open the original to read.",
-	[Key.mdEmbedLimit]: "Cannot expand further",
-	[Key.mdEmbedUnpublished]: "Not yet public",
-	[Key.mdEmbedMissing]: "Referenced content does not exist",
-	[Key.mdEmbedAmbiguous]: "Cannot identify the referenced content",
-	[Key.mdReferenceOpen]: "Open original",
-	[Key.mdBacklinks]: "Backlinks",
-
 	[Key.media]: "Films & Books",
 	[Key.mediaDescription]: "Films I have watched and books I have read.",
 	[Key.mediaEmpty]: "No films or books yet. More to come.",

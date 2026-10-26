@@ -1,23 +1,23 @@
-import { expandReferences } from "../../src/plugins/markdown/core/obsidian-references.mjs";
 import { execFileSync } from "node:child_process";
 import { createHash } from "node:crypto";
 import { existsSync, readFileSync, statSync } from "node:fs";
 import { join, posix, relative } from "node:path";
+import remarkGfm from "remark-gfm";
 import remarkParse from "remark-parse";
 import { unified } from "unified";
+import { visit } from "unist-util-visit";
 import { parse, stringify } from "yaml";
 import { files } from "./files.mjs";
 import { domains } from "./model.mjs";
 import { materializeVault } from "./outputs.mjs";
-import { createResources } from "./resources.mjs";
-import { clone, createNoteIndex, disableFileImports, normalizeProperties, prepareNote, stripObsidianComments, walk } from "../../src/plugins/markdown/core/obsidian.mjs";
 import { normalizeNoteProperties } from "./properties.mjs";
+import { createResources } from "./resources.mjs";
 
 export { files } from "./files.mjs";
 
 import { displayTime, instant, normalizeTime, shanghaiDate } from "./time.mjs";
 
-const markdownParser = unified().use(remarkParse);
+const markdownParser = unified().use(remarkParse).use(remarkGfm);
 
 export { instant } from "./time.mjs";
 
@@ -80,7 +80,12 @@ export function noteText(data, body = "") {
 	return `---\n${yaml}\n---\n\n${body.replace(/^\n+/, "")}`;
 }
 export function visible(data, time) {
-	if (data.publish !== true || data.draft === true || data.visible === false)
+	if (
+		data.publish !== true ||
+		data.draft === true ||
+		data.visible === false ||
+		data.hidden === true
+	)
 		return false;
 	const start = instant(data.publishAt);
 	const end = instant(data.unpublishAt);
@@ -109,14 +114,8 @@ export function readRecords(root, inventory = files(root)) {
 			? types[note.data.type]
 			: undefined;
 		if (!domain) continue;
-		if (note.data.publish === true) note.body = stripObsidianComments(note.body);
 		const path = relative(root, file).replaceAll("\\", "/");
-		const data = normalizeNoteProperties(normalizeProperties(note.data), domain);
-		if (data.publish === true && ["posts", "moments"].includes(domain)) {
-			const tags = new Set(data.tags || []);
-			walk(prepareNote(note.body).tree, (node) => { if (node.data?.obsidianTag) tags.add(node.data.obsidianTag); });
-			data.tags = [...tags];
-		}
+		const data = normalizeNoteProperties(note.data, domain);
 		const authoredDate = data.date ?? data.publishedAt ?? data.published;
 		const name = posix.basename(path, ".md");
 		data.title ??= name;
@@ -273,10 +272,7 @@ export function readRecords(root, inventory = files(root)) {
 		}
 		if (domain === "albums") {
 			const images = [];
-			const ranges = [];
 			const visit = (node) => {
-				if (["code", "inlineCode"].includes(node.type))
-					ranges.push([node.position.start.offset, node.position.end.offset]);
 				if (node.type === "image")
 					images.push({
 						src: node.url,
@@ -286,15 +282,6 @@ export function readRecords(root, inventory = files(root)) {
 				for (const child of node.children || []) visit(child);
 			};
 			visit(markdownParser.parse(note.body));
-			for (const m of note.body.matchAll(/!\[\[([^\]]+)\]\]/g)) {
-				if (ranges.some(([a, b]) => m.index >= a && m.index < b)) continue;
-				const [src, alt] = m[1].split("|");
-				images.push({
-					src,
-					alt: alt && !/^\d+(?:x\d+)?$/.test(alt) ? alt : "",
-					offset: m.index,
-				});
-			}
 			if (images.length)
 				data.photos = images
 					.sort((a, b) => a.offset - b.offset)
@@ -303,10 +290,7 @@ export function readRecords(root, inventory = files(root)) {
 						...image,
 					}));
 			data.description =
-				note.body
-					.replace(/!\[\[[^\]]+\]\]/g, "")
-					.replace(/!\[[^\]]*\]\([^)]+\)/g, "")
-					.trim() ||
+				note.body.replace(/!\[[^\]]*\]\([^)]+\)/g, "").trim() ||
 				data.description ||
 				"";
 		}
@@ -467,7 +451,6 @@ export function compileVault({ sourceRoot, root, dryRun = false, previewAt }) {
 		previewAt || process.env.VAULT_BUILD_AT || new Date().toISOString(),
 	);
 	const active = (r) => visible(r.data, time);
-	for (const record of records.filter(active)) record.body = disableFileImports(record.body);
 	let sorted = records
 		.filter(active)
 		.sort(
@@ -537,38 +520,78 @@ export function compileVault({ sourceRoot, root, dryRun = false, previewAt }) {
 			throw new Error("Duplicate public note slug");
 		outputs.set(path, text);
 	};
-	const resources = createResources({ root, sourceRoot, paths: inventory.map((p) => relative(sourceRoot, p).replaceAll("\\", "/")) });
-	const {
-		asset,
-		mapAssets,
-		copies: assetOutputs,
-	} = resources;
-	const notesByPath = new Map(records.map((record) => [record.path, record]));
-	const notes = inventory.filter((path) => /\.md$/i.test(path)).map((file) => {
-		const path = relative(sourceRoot, file).replaceAll("\\", "/");
-		const r = notesByPath.get(path);
-		if (!r || !active(r)) return { path, public: false };
-		const url = r.domain === "posts" ? r.data.permalink ? `/${r.data.permalink.replace(/^\/+|\/+$/g, "")}/` : `/posts/${r.data.alias}/` : r.domain === "media" ? `/media/${r.data.key}/` : r.domain === "pages" ? `/${r.data.key}/` : r.domain === "moments" ? `/moments/#moment-${r.data.alias}` : `/${r.domain}/`;
-		const outputPath = r.domain === "posts" || r.domain === "moments" ? `src/content/${r.domain}/${r.data.alias}.md` : r.domain === "pages" ? `src/content/spec/${r.data.key}.md` : r.domain === "media" ? `src/content/spec/media/${r.data.key}.md` : undefined;
-		return { path, public: true, encrypted: Boolean(r.data.encrypted || r.data.password), title: r.data.title, fragmentPrefix: r.domain === "moments" ? `moment-${r.data.alias}-` : undefined, url, output: outputPath, properties: { aliases: r.data.aliases, tags: r.data.tags, cssclasses: r.data.cssclasses }, body: r.data.encrypted || r.data.password ? "" : r.body };
+	const resources = createResources({
+		root,
+		sourceRoot,
+		paths: inventory.map((p) => relative(sourceRoot, p).replaceAll("\\", "/")),
 	});
-	const resolvedAssets = {};
+	const { asset, mapAssets, copies: assetOutputs } = resources;
 	const diagnostics = [];
-	const index = createNoteIndex(notes, { resolveAsset(value, origin) {
-		const key = `${origin}\0${value}`;
-		if (!(key in resolvedAssets)) resolvedAssets[key] = resources.reference(value, origin);
-		return resolvedAssets[key];
-	} });
-	const backlinks = {};
-	for (const entry of index.entries.filter((entry) => entry.public !== false && !entry.encrypted)) {
-		const result = expandReferences(clone(entry.tree), { index, current: entry.path });
-		diagnostics.push(...result.diagnostics);
-		for (const target of result.directLinks) {
-			if (target === entry.path) continue;
-			(backlinks[target] ??= []).push({ title: entry.title, url: entry.url });
-		}
+	// Relocating public files changes resource bases, not Markdown syntax.
+	// Keep the source text intact apart from standard Markdown destinations.
+	const noteUrls = new Map(
+		sorted.map((r) => [
+			r.path,
+			r.domain === "posts"
+				? r.data.permalink
+					? `/${r.data.permalink.replace(/^\/+|\/+$/g, "")}/`
+					: `/posts/${r.data.alias}/`
+				: r.domain === "media"
+					? `/media/${r.data.key}/`
+					: r.domain === "pages"
+						? `/${r.data.key}/`
+						: r.domain === "moments"
+							? `/moments/#moment-${r.data.alias}`
+							: `/${r.domain}/`,
+		]),
+	);
+	function publicBody(body, path) {
+		const replacements = [];
+		visit(markdownParser.parse(body), (node) => {
+			if (!["image", "link", "definition"].includes(node.type)) return;
+			const original = node.url;
+			if (/^(?:[a-z][a-z\d+.-]*:|#|\/\/)/i.test(original)) return;
+			const name = original.split(/[?#]/)[0];
+			const suffix = original.slice(name.length);
+			const found = resources.resolveFile(name, path);
+			let url;
+			if (found && /\.md$/i.test(found)) {
+				if (node.type === "image") return;
+				url = noteUrls.get(found);
+				if (url) url += suffix;
+			} else if (node.type !== "image" && original.startsWith("/") && !found)
+				return;
+			else url = resources.reference(original, path).url;
+			if (!url || url === original) {
+				if (!url)
+					diagnostics.push({
+						code: "unresolved-resource",
+						source: path,
+						line: node.position.start.line,
+					});
+				return;
+			}
+			const start = node.position.start.offset;
+			const segment = body.slice(start, node.position.end.offset);
+			// Search after the label, so alt text and titles are never rewritten.
+			const destinationStart =
+				node.type === "definition"
+					? segment.indexOf("]:") + 2
+					: segment.lastIndexOf("](") + 2;
+			const offset = segment.indexOf(original, destinationStart);
+			if (offset >= 0)
+				replacements.push([
+					start + offset,
+					start + offset + original.length,
+					url,
+				]);
+		});
+		let output = body;
+		for (const [start, end, url] of replacements.sort((a, b) => b[0] - a[0]))
+			output = output.slice(0, start) + url + output.slice(end);
+		return output;
 	}
-	output(".vault-cache/markdown-index.json", `${JSON.stringify({ schema: 1, notes, assets: resolvedAssets, backlinks })}\n`);
+
 	for (const r of ["posts", "moments", "pages"].flatMap(list)) {
 		const collection = r.domain === "pages" ? "spec" : r.domain;
 		const id = r.domain === "pages" ? r.data.key : r.data.alias;
@@ -586,8 +609,6 @@ export function compileVault({ sourceRoot, root, dryRun = false, previewAt }) {
 			"updated",
 			"updatedAt",
 			"displayDate",
-			"aliases",
-			"cssclasses",
 		]);
 		const data = mapAssets(
 			Object.fromEntries(
@@ -597,7 +618,7 @@ export function compileVault({ sourceRoot, root, dryRun = false, previewAt }) {
 		);
 		output(
 			`src/content/${collection}/${id}.md`,
-			noteText(data, r.body),
+			noteText(data, publicBody(r.body, r.path)),
 		);
 	}
 	for (const r of list("media")) {
@@ -605,7 +626,7 @@ export function compileVault({ sourceRoot, root, dryRun = false, previewAt }) {
 			throw new Error("Invalid media slug");
 		output(
 			`src/content/spec/media/${r.data.key}.md`,
-			noteText({}, r.body),
+			noteText({}, publicBody(r.body, r.path)),
 		);
 	}
 	const data = { categories: [], tags: [], series: [], media: [] };
