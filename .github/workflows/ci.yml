@@ -51,6 +51,10 @@ jobs:
         run: pnpm type-check
       - name: Run unit tests
         run: node --test --test-concurrency=1 "tests/**/*.test.mjs"
+      - name: Validate static release and Nginx HTTP contracts
+        run: |
+          python3 tests/deploy/release.test.py
+          python3 tests/deploy/nginx.test.py
       - name: Build production site
         run: pnpm build
       - name: Notify private content publication

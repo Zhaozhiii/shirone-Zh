@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Run as shirone-deploy; the only sudo grant is restarting its own container."""
+"""Atomically publish static files as shirone-deploy; no sudo or restart needed."""
 import fcntl
 import hashlib
 import json
@@ -7,7 +7,6 @@ import os
 from pathlib import Path, PurePosixPath
 import re
 import shutil
-import subprocess
 import sys
 import tarfile
 import time
@@ -30,16 +29,33 @@ def link(name, target):
     temporary.replace(ROOT / name)
 
 
-def restart():
-    subprocess.run(["sudo", "-n", "/usr/bin/docker", "restart", "shirone-blog"], check=True, timeout=45)
+def prepare_health(target, sha=None):
+    """Derive a sidecar for legacy Node releases without changing site bytes."""
+    metadata = json.loads((target / "release.json").read_text())
+    if metadata.get("release") != (sha or target.name) or metadata.get("dirty") is not False:
+        raise ValueError("Expected a clean release with matching identity")
+    expected = {"status": "ok", **{k: metadata[k] for k in ("release", "code", "content")}}
+    if not all(SHA.fullmatch(expected[k] or "") for k in ("release", "code", "content")):
+        raise ValueError("Invalid release version metadata")
+    path = target / "health.json"
+    if path.exists():
+        if json.loads(path.read_text()) != expected:
+            raise ValueError("Health metadata does not match release")
+    else:
+        temporary = target / f".health.{os.getpid()}"
+        temporary.write_text(json.dumps(expected) + "\n")
+        temporary.chmod(0o644)
+        temporary.replace(path)
 
 
 def healthy(sha):
+    expected = json.loads((ROOT / "releases" / sha / "health.json").read_text())
     for _ in range(25):
         try:
-            with urllib.request.urlopen(HEALTH, timeout=5) as response:
+            request = urllib.request.Request(HEALTH, headers={"Cache-Control": "no-cache"})
+            with urllib.request.urlopen(request, timeout=5) as response:
                 data = json.load(response)
-                if data.get("status") == "ok" and data.get("release") == sha:
+                if all(data.get(k) == v for k, v in expected.items()):
                     with urllib.request.urlopen("https://blog.zhiii.top/", timeout=5) as home:
                         if home.status == 200:
                             return
@@ -61,6 +77,7 @@ def unpack(sha):
         # A commit identifies immutable bytes. Reruns reuse the validated release.
         if json.loads((target / "release.json").read_text())["release"] != sha:
             raise ValueError("Existing release metadata mismatch")
+        prepare_health(target)
         return target
     if stage.exists():
         shutil.rmtree(stage)
@@ -71,7 +88,7 @@ def unpack(sha):
                 path = PurePosixPath(member.name)
                 if path.is_absolute() or ".." in path.parts or not (member.isfile() or member.isdir()):
                     raise ValueError("Unsafe archive entry")
-                if path.parts and path.parts[0] not in {"dist", "server.cjs", "release.json", "SHA256SUMS"}:
+                if path.parts and path.parts[0] not in {"dist", "health.json", "server.cjs", "release.json", "SHA256SUMS"}:
                     raise ValueError(f"Unexpected archive entry: {member.name}")
             package.extractall(stage, filter="data")
         listed = set()
@@ -88,8 +105,9 @@ def unpack(sha):
             raise ValueError("Release manifest is incomplete")
         if json.loads((stage / "release.json").read_text())["release"] != sha:
             raise ValueError("Release SHA mismatch")
-        if not (stage / "dist/index.html").is_file() or not (stage / "server.cjs").is_file():
-            raise ValueError("Missing site or runtime")
+        if not (stage / "dist/index.html").is_file():
+            raise ValueError("Missing site index")
+        prepare_health(stage, sha)
         stage.rename(target)
     except BaseException:
         shutil.rmtree(stage, ignore_errors=True)
@@ -98,16 +116,17 @@ def unpack(sha):
 
 
 def activate(sha):
+    prepare_health(ROOT / "releases" / sha)
     current = ROOT / "current"
     old = os.readlink(current) if current.is_symlink() else None
+    if old:
+        prepare_health(ROOT / old)
     link("current", f"releases/{sha}")
     try:
-        restart()
         healthy(sha)
     except BaseException:
         if old:
             link("current", old)
-            restart()
             healthy(Path(old).name)
             print(f"Restored previous release {Path(old).name}", flush=True)
         else:

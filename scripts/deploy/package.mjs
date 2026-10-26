@@ -2,7 +2,6 @@ import { execFileSync } from "node:child_process";
 import { createHash } from "node:crypto";
 import { cp, mkdir, readdir, readFile, rm, writeFile } from "node:fs/promises";
 import { join, relative, resolve } from "node:path";
-import { build } from "esbuild";
 import { releaseVersion } from "./release-version.mjs";
 
 const head = execFileSync("git", ["rev-parse", "HEAD"], {
@@ -44,15 +43,10 @@ if (
 await rm(output, { recursive: true, force: true });
 await mkdir(output, { recursive: true });
 await cp("dist", join(output, "dist"), { recursive: true });
-await build({
-	entryPoints: ["scripts/deploy/start.mjs"],
-	outfile: join(output, "server.cjs"),
-	bundle: true,
-	platform: "node",
-	format: "cjs",
-	target: "node22",
-	legalComments: "inline",
-});
+await writeFile(
+	join(output, "health.json"),
+	`${JSON.stringify({ status: "ok", release, code: head, content })}\n`,
+);
 await writeFile(
 	join(output, "release.json"),
 	`${JSON.stringify({ release, code: head, content, dirty })}\n`,

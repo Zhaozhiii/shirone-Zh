@@ -96,7 +96,7 @@ Windows 使用 Obsidian Git 冲突列表，Android 使用 GitSync 冲突提示�
 公开源码 CI 只用合成夹具，验证后用仅限 Vault 的 deploy key 更新隐藏标记触发发布。
 源码和内容锁定提交；服务器激活前检查最新版本；并发队列合并连续提交。
 私人 Markdown 不作为 Actions 制品上传，生产编译、检查与构建不打印源正文或属性值。
-发布物只含可公开静态网站与原有最小服务。定时内容由 Actions 检查，阿里云无需 CMS 定时服务。
+发布物只含可公开静态网站、版本健康元数据与校验清单，由现有 Nginx 直接托管，不包含 Node 运行时。定时内容由 Actions 检查，阿里云无需 CMS 定时服务。
 音乐脚本及日更工作流集中在源码仓，保留完整音轨检查和现有播放器。
 
 加密文章沿用原客户端加密。建议 `encrypted: true` 和 `passwordSecret: BLOG_NOTE_PASSWORD`。
