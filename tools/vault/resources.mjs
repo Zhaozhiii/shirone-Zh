@@ -43,7 +43,8 @@ export function createResources({ root, sourceRoot, paths }) {
 				.replaceAll("\\", "/")
 				.replace(/^\/+/, "");
 		} catch {
-			throw new Error("Invalid resource path");
+			resolved.set(key, null);
+			return null;
 		}
 		const local = posix.normalize(posix.join(posix.dirname(notePath), name));
 		const found = exact.has(local)
@@ -94,15 +95,35 @@ export function createResources({ root, sourceRoot, paths }) {
 		const value = input.replace(/^!?\[\[([^\]]+)\]\]$/, "$1").split("|")[0];
 		if (/^https?:\/\//i.test(value)) return { status: "valid", url: value };
 		let decoded;
-		try { decoded = decodeURIComponent(value.split(/[?#]/)[0].replace(/%(?![a-f\d]{2})/gi, "%25")).replaceAll("\\", "/"); } catch { return { status: "missing" }; }
+		try {
+			decoded = decodeURIComponent(
+				value.split(/[?#]/)[0].replace(/%(?![a-f\d]{2})/gi, "%25"),
+			).replaceAll("\\", "/");
+		} catch {
+			return { status: "missing" };
+		}
 		const local = posix.normalize(posix.join(posix.dirname(notePath), decoded));
-		if (/^[a-z][a-z\d+.-]*:/i.test(decoded) || decoded.startsWith("//") || local === ".." || local.startsWith("../") || decoded.includes("\0")) return { status: "outside" };
+		if (
+			/^[a-z][a-z\d+.-]*:/i.test(decoded) ||
+			decoded.startsWith("//") ||
+			local === ".." ||
+			local.startsWith("../") ||
+			decoded.includes("\0")
+		)
+			return { status: "outside" };
 		try {
 			const url = strictAsset(value.split(/[?#]/)[0], notePath);
-			const suffix = value.slice(value.search(/[?#]/) < 0 ? value.length : value.search(/[?#]/));
+			const suffix = value.slice(
+				value.search(/[?#]/) < 0 ? value.length : value.search(/[?#]/),
+			);
 			return { status: "valid", url: url + suffix };
 		} catch {
-			return { status: suffixes.has(decoded) && suffixes.get(decoded) === null ? "ambiguous" : "missing" };
+			return {
+				status:
+					suffixes.has(decoded) && suffixes.get(decoded) === null
+						? "ambiguous"
+						: "missing",
+			};
 		}
 	}
 	function asset(input, notePath = "") {

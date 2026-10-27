@@ -18,6 +18,7 @@ import I18nKey from "@i18n/i18nKey";
 import { i18n } from "@i18n/translation";
 import Icon from "@iconify/svelte";
 import { ANIME_STATUS_META } from "@utils/anime/status";
+import { replaceFilterQuery } from "@utils/filter-url";
 import { flipFromRect } from "@utils/motion";
 import { onMount } from "svelte";
 import type { AnimeItem } from "../../data/anime";
@@ -136,8 +137,7 @@ $effect(() => {
 	params.delete("q");
 	if (s) params.set("status", s);
 	if (q.trim()) params.set("q", q.trim());
-	const qs = params.toString();
-	history.replaceState(null, "", qs ? `?${qs}` : window.location.pathname);
+	replaceFilterQuery(params);
 });
 
 onMount(() => {

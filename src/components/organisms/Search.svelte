@@ -14,6 +14,7 @@ let result: SearchResult[] = [];
 let isSearching = false;
 let pagefindLoaded = false;
 let initialized = false;
+let searchVersion = 0;
 
 $: panelResults = result.map((r) => ({
 	url: r.url,
@@ -56,9 +57,11 @@ const setPanelVisibility = (show: boolean, isDesktop: boolean): void => {
 };
 
 const search = async (keyword: string, isDesktop: boolean): Promise<void> => {
-	if (!keyword) {
+	const version = ++searchVersion;
+	if (!keyword.trim()) {
 		setPanelVisibility(false, isDesktop);
 		result = [];
+		isSearching = false;
 		return;
 	}
 
@@ -96,14 +99,16 @@ const search = async (keyword: string, isDesktop: boolean): Promise<void> => {
 			searchResults = fakeResult;
 		}
 
+		if (version !== searchVersion) return;
 		result = searchResults;
 		setPanelVisibility(result.length > 0, isDesktop);
 	} catch (error) {
+		if (version !== searchVersion) return;
 		console.error("Search error:", error);
 		result = [];
 		setPanelVisibility(false, isDesktop);
 	} finally {
-		isSearching = false;
+		if (version === searchVersion) isSearching = false;
 	}
 };
 
@@ -139,13 +144,13 @@ onMount(() => {
 	}
 });
 
-$: if (initialized && keywordDesktop) {
+$: if (initialized) {
 	(async () => {
 		await search(keywordDesktop, true);
 	})();
 }
 
-$: if (initialized && keywordMobile) {
+$: if (initialized) {
 	(async () => {
 		await search(keywordMobile, false);
 	})();

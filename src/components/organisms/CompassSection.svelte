@@ -20,6 +20,7 @@ import SectionTitle from "@components/molecules/SectionTitle.svelte";
 import I18nKey from "@i18n/i18nKey";
 import { i18n } from "@i18n/translation";
 import Icon from "@iconify/svelte";
+import { replaceFilterQuery } from "@utils/filter-url";
 import { onMount } from "svelte";
 import type { CompassShelf } from "../../data/compass";
 
@@ -93,8 +94,7 @@ $effect(() => {
 	params.delete("group");
 	if (q) params.set("q", q);
 	if (g) params.set("group", g);
-	const qs = params.toString();
-	history.replaceState(null, "", qs ? `?${qs}` : window.location.pathname);
+	replaceFilterQuery(params);
 });
 
 onMount(() => {

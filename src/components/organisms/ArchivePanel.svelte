@@ -16,6 +16,7 @@ import I18nKey from "@i18n/i18nKey";
 import { i18n } from "@i18n/translation";
 import Icon from "@iconify/svelte";
 import { formatCalendarDate } from "@utils/content-date";
+import { replaceFilterQuery } from "@utils/filter-url";
 import { getPostUrlBySlug, url } from "@utils/url-utils";
 import { categoryAncestors, categoryName, tagName } from "@utils/vault-content";
 import { onMount } from "svelte";
@@ -209,7 +210,7 @@ function selectTag(name: string) {
 	if (typeof window !== "undefined") {
 		const params = new URLSearchParams(window.location.search);
 		params.set("tag", name);
-		history.replaceState(null, "", `?${params.toString()}`);
+		replaceFilterQuery(params);
 	}
 }
 

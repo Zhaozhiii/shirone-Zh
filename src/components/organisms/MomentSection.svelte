@@ -18,7 +18,8 @@ import I18nKey from "@i18n/i18nKey";
 import { i18n } from "@i18n/translation";
 import type { MomentItem } from "@utils/content-utils";
 import { initFancybox } from "@utils/fancybox-handler";
-import { onMount } from "svelte";
+import { replaceFilterQuery } from "@utils/filter-url";
+import { onMount, tick } from "svelte";
 
 let {
 	moments = [] as MomentItem[],
@@ -100,8 +101,7 @@ $effect(() => {
 	params.delete("tag");
 	if (q) params.set("q", q);
 	if (t) params.set("tag", t);
-	const qs = params.toString();
-	history.replaceState(null, "", qs ? `?${qs}` : window.location.pathname);
+	replaceFilterQuery(params);
 });
 
 onMount(() => {
@@ -109,9 +109,40 @@ onMount(() => {
 	query = params.get("q") || "";
 	selectedTag = params.get("tag") || "";
 	initialized = true;
+	let disposed = false;
+	// Pagination must not hide destinations linked from notes or the sidebar.
+	async function revealHashTarget() {
+		const hash = window.location.hash;
+		let id: string;
+		try {
+			id = decodeURIComponent(hash.slice(1));
+		} catch {
+			return;
+		}
+		if (!id.startsWith("moment-")) return;
+		await tick();
+		if (disposed) return;
+		const index = filtered.findIndex((moment) => `moment-${moment.id}` === id);
+		if (index < 0) return;
+		shownCount = Math.max(shownCount, index + 1);
+		await tick();
+		if (!disposed && window.location.hash === hash)
+			document
+				.getElementById(id)
+				?.scrollIntoView({ behavior: "instant", block: "start" });
+	}
+	void revealHashTarget();
+	window.addEventListener("hashchange", revealHashTarget);
+	// Swup updates history for same-page anchors without a native hashchange.
+	document.addEventListener("swup:link:anchor", revealHashTarget);
 	// 图片灯箱：client:only 岛挂载晚于全局 init，此处确保 [data-fancybox] 已绑定
 	initFancybox();
-	return () => phaseTimers.forEach(clearTimeout);
+	return () => {
+		disposed = true;
+		phaseTimers.forEach(clearTimeout);
+		window.removeEventListener("hashchange", revealHashTarget);
+		document.removeEventListener("swup:link:anchor", revealHashTarget);
+	};
 });
 </script>
 

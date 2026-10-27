@@ -9,6 +9,7 @@ import PageHeader from "@components/molecules/PageHeader.svelte";
 import I18nKey from "@i18n/i18nKey";
 import { i18n } from "@i18n/translation";
 import Icon from "@iconify/svelte";
+import { replaceFilterQuery } from "@utils/filter-url";
 import type { FriendCheckResult, FriendStatusInfo } from "@utils/friend-check";
 import {
 	buildStatusMap,
@@ -232,8 +233,7 @@ $effect(() => {
 	params.delete("tag");
 	if (q) params.set("q", q);
 	if (t) params.set("tag", t);
-	const qs = params.toString();
-	history.replaceState(null, "", qs ? `?${qs}` : window.location.pathname);
+	replaceFilterQuery(params);
 });
 
 onMount(() => {

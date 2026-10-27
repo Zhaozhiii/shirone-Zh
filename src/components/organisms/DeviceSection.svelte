@@ -14,6 +14,7 @@ import PageHeader from "@components/molecules/PageHeader.svelte";
 import I18nKey from "@i18n/i18nKey";
 import { i18n } from "@i18n/translation";
 import Icon from "@iconify/svelte";
+import { replaceFilterQuery } from "@utils/filter-url";
 import { packMasonry, setupMasonry } from "@utils/masonry";
 import { onMount } from "svelte";
 import type { DeviceCategory, DeviceItem } from "@/types/devicesConfig";
@@ -88,8 +89,7 @@ $effect(() => {
 	params.delete("q");
 	if (c) params.set("category", c);
 	if (q.trim()) params.set("q", q.trim());
-	const qs = params.toString();
-	history.replaceState(null, "", qs ? `?${qs}` : window.location.pathname);
+	replaceFilterQuery(params);
 });
 
 onMount(() => {
@@ -151,7 +151,7 @@ $effect(() => {
 			</div>
 
 			<div class="devices-section__filter-row">
-				<div class="devices-section__chips" aria-label={i18n(I18nKey.devicesCategoryLabel)}>
+				<div class="devices-section__chips" role="group" aria-label={i18n(I18nKey.devicesCategoryLabel)}>
 					<Chips
 						items={categoryChipItems}
 						variant="filter"

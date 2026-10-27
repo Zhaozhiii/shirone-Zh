@@ -9,6 +9,7 @@ import ProjectCard from "@components/molecules/ProjectCard.svelte";
 import I18nKey from "@i18n/i18nKey";
 import { i18n } from "@i18n/translation";
 import Icon from "@iconify/svelte";
+import { replaceFilterQuery } from "@utils/filter-url";
 import { packMasonry, setupMasonry } from "@utils/masonry";
 import { onMount } from "svelte";
 import type { ProjectCategory, ProjectItem } from "@/types/projectsConfig";
@@ -78,8 +79,7 @@ $effect(() => {
 	params.delete("q");
 	if (c) params.set("category", c);
 	if (q.trim()) params.set("q", q.trim());
-	const qs = params.toString();
-	history.replaceState(null, "", qs ? `?${qs}` : window.location.pathname);
+	replaceFilterQuery(params);
 });
 
 /** 瀑布流：复用文章列表的最短列打包（utils/masonry.ts）。

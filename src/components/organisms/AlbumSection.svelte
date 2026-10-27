@@ -8,6 +8,7 @@ import PageHeader from "@components/molecules/PageHeader.svelte";
 import I18nKey from "@i18n/i18nKey";
 import { i18n } from "@i18n/translation";
 import Icon from "@iconify/svelte";
+import { replaceFilterQuery } from "@utils/filter-url";
 import { onMount } from "svelte";
 import type { AlbumIndexItem } from "@/types/album";
 
@@ -15,7 +16,8 @@ let { albums = [] as AlbumIndexItem[] }: { albums?: AlbumIndexItem[] } =
 	$props();
 let query = $state("");
 let selectedTag = $state("");
-let initialized = false;
+// The URL effect reads this guard before the filters, so it must be reactive.
+let initialized = $state(false);
 type FilterPhase = "idle" | "loading" | "out";
 let phase = $state<FilterPhase>("idle");
 let phaseTimers: ReturnType<typeof setTimeout>[] = [];
@@ -54,12 +56,7 @@ $effect(() => {
 	params.delete("albumTag");
 	if (query.trim()) params.set("q", query.trim());
 	if (selectedTag) params.set("albumTag", selectedTag);
-	const search = params.toString();
-	history.replaceState(
-		null,
-		"",
-		search ? `?${search}` : window.location.pathname,
-	);
+	replaceFilterQuery(params);
 });
 
 onMount(() => {

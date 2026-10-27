@@ -76,6 +76,57 @@ test("native attachments resolve Chinese paths, encoded spaces, references and l
 	assert.match(code, /data-admonition="note"/);
 	assert.doesNotMatch(code, /obsidian-|PRIVATE_IMAGE/);
 });
+test("extensionless note links resolve in every public body and preserve URL suffixes", (t) => {
+	const { note, build } = fixture(t);
+	note(
+		"博客/博客设计.md",
+		{ type: "article", publish: true, slug: "design" },
+		"Design",
+	);
+	note(
+		"动态/目标.md",
+		{ type: "moment", publish: true, slug: "target" },
+		"Target",
+	);
+	const body =
+		"[设计文档](博客/博客设计)\n\n[相对](../博客/博客设计?view=full#标题)\n\n[引用][design]\n\n[design]: 博客/博客设计\n\n[动态](动态/目标?q=test)";
+	note("动态/来源.md", { type: "moment", publish: true, slug: "source" }, body);
+	const result = build();
+	assert.deepEqual(result.diagnostics, []);
+	const output = readNote(
+		result.outputs.get("src/content/moments/source.md"),
+	).body;
+	assert.match(output, /\[设计文档\]\(\/posts\/design\/\)/);
+	assert.match(output, /\/posts\/design\/\?view=full#标题/);
+	assert.match(output, /\[design\]: \/posts\/design\//);
+	assert.match(output, /\/moments\/\?q=test#moment-target/);
+});
+
+test("extensionless private or ambiguous notes never become public destinations", (t) => {
+	const { note, build } = fixture(t);
+	note("private.md", {}, "PRIVATE_SENTINEL");
+	note("a/shared.md", { type: "article", publish: true, slug: "a" }, "A");
+	note("b/shared.md", { type: "article", publish: true, slug: "b" }, "B");
+	note(
+		"source.md",
+		{ type: "moment", publish: true, slug: "source" },
+		"[private](private) [ambiguous](shared) [web](/archive/)",
+	);
+	const result = build();
+	assert.equal(result.diagnostics.length, 2);
+	const output = readNote(
+		result.outputs.get("src/content/moments/source.md"),
+	).body;
+	assert.match(
+		output,
+		/\[private\]\(private\) \[ambiguous\]\(shared\) \[web\]\(\/archive\/\)/,
+	);
+	assert.doesNotMatch(
+		[...result.outputs.values()].join(""),
+		/PRIVATE_SENTINEL/,
+	);
+});
+
 test("YAML controls title, date, image, tags, category, drafts and visibility", (t) => {
 	const { write, note, build } = fixture(t);
 	write("附件/cover.png", "COVER");
@@ -148,4 +199,91 @@ test("resource failures are local and never publish a private note as an attachm
 		[...result.outputs.values()].join(""),
 		/PRIVATE_SENTINEL/,
 	);
+});
+
+test("malformed percent-encoded references remain local diagnostics", (t) => {
+	const { note, build } = fixture(t);
+	note(
+		"post.md",
+		{ type: "article", publish: true, slug: "post" },
+		"BEFORE [broken](%E0%A4) AFTER",
+	);
+	const result = build();
+	assert.equal(result.diagnostics.length, 1);
+	assert.match(
+		readNote(result.outputs.get("src/content/posts/post.md")).body,
+		/BEFORE \[broken\]\(%E0%A4\) AFTER/,
+	);
+});
+
+test("escaped Markdown destinations are rewritten without changing labels or titles", (t) => {
+	const { write, note, build } = fixture(t);
+	write("附件/photo(1).png", "PHOTO");
+	note(
+		"target(1).md",
+		{ type: "article", publish: true, slug: "target" },
+		"Target",
+	);
+	note(
+		"post.md",
+		{ type: "article", publish: true, slug: "post" },
+		String.raw`![photo](附件/photo\(1\).png "title ]( untouched")
+
+[target](target\(1\).md "title ]( untouched")
+
+[![nested](https://example.com/icon.png)](target\(1\).md)
+
+[reference]: target\(1\).md "title ]( untouched"
+
+[ref][reference]`,
+	);
+	const result = build();
+	assert.deepEqual(result.diagnostics, []);
+	const output = readNote(result.outputs.get("src/content/posts/post.md")).body;
+	assert.match(
+		output,
+		/!\[photo\]\(\/images\/vault\/[a-f0-9]+\.png "title \]\( untouched"\)/,
+	);
+	assert.match(
+		output,
+		/\[target\]\(\/posts\/target\/ "title \]\( untouched"\)/,
+	);
+	assert.match(
+		output,
+		/\[!\[nested\]\(https:\/\/example.com\/icon.png\)\]\(\/posts\/target\/\)/,
+	);
+	assert.match(
+		output,
+		/\[reference\]: \/posts\/target\/ "title \]\( untouched"/,
+	);
+});
+
+test("note links use album and series detail routes rather than their indexes", (t) => {
+	const { note, build } = fixture(t);
+	note(
+		"album.md",
+		{
+			type: "album",
+			publish: true,
+			key: "travel",
+			title: "Travel",
+			photos: [],
+		},
+		"",
+	);
+	note(
+		"series.md",
+		{ type: "series", publish: true, key: "tutorial", title: "Tutorial" },
+		"",
+	);
+	note(
+		"post.md",
+		{ type: "article", publish: true, slug: "post" },
+		"[Album](album.md) [Series](series.md)",
+	);
+	const result = build();
+	assert.deepEqual(result.diagnostics, []);
+	const output = readNote(result.outputs.get("src/content/posts/post.md")).body;
+	assert.match(output, /\[Album\]\(\/albums\/travel\/\)/);
+	assert.match(output, /\[Series\]\(\/series\/tutorial\/\)/);
 });

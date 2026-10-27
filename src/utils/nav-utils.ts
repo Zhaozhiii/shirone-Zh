@@ -21,9 +21,18 @@ export function resolvePageKey(
 ): string {
 	const pathname = url.pathname.replace(/\/+$/, "") || "/";
 	if (pathname === "/") return "home";
-	if (url.searchParams.has("category")) return "categories";
-	if (url.searchParams.has("tag")) return "tags";
-	if (pathname === "/archive") return "archive";
+	if (pathname === "/archive") {
+		if (url.searchParams.has("category")) return "categories";
+		if (url.searchParams.has("tag")) return "tags";
+		return "archive";
+	}
+	if (pathname === "/categories") return "categories";
+	if (pathname === "/tags") return "tags";
+	if (pathname === "/series" || pathname.startsWith("/series/"))
+		return "series";
+	if (pathname === "/media" || pathname.startsWith("/media/")) return "media";
+	if (pathname === "/guestbook") return "guestbook";
+	if (pathname === "/sponsor") return "sponsor";
 	if (pathname === "/friends") return "friends";
 	if (pathname === "/moments") return "moments";
 	if (pathname === "/anime") return "anime";

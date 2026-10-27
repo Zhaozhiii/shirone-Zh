@@ -536,8 +536,8 @@ export function compileVault({ sourceRoot, root, dryRun = false, previewAt }) {
 				? r.data.permalink
 					? `/${r.data.permalink.replace(/^\/+|\/+$/g, "")}/`
 					: `/posts/${r.data.alias}/`
-				: r.domain === "media"
-					? `/media/${r.data.key}/`
+				: ["media", "albums", "series"].includes(r.domain)
+					? `/${r.domain}/${r.data.key}/`
 					: r.domain === "pages"
 						? `/${r.data.key}/`
 						: r.domain === "moments"
@@ -550,15 +550,32 @@ export function compileVault({ sourceRoot, root, dryRun = false, previewAt }) {
 		visit(markdownParser.parse(body), (node) => {
 			if (!["image", "link", "definition"].includes(node.type)) return;
 			const original = node.url;
-			if (/^(?:[a-z][a-z\d+.-]*:|#|\/\/)/i.test(original)) return;
+			if (!original || /^(?:[a-z][a-z\d+.-]*:|#|\/\/)/i.test(original)) return;
 			const name = original.split(/[?#]/)[0];
 			const suffix = original.slice(name.length);
-			const found = resources.resolveFile(name, path);
+			// Obsidian's standard Markdown links may omit the .md extension.
+			// Resolve against the full inventory first, so private/ambiguous notes
+			// cannot accidentally select a different public note with the same name.
+			const found =
+				resources.resolveFile(name, path) ??
+				(node.type !== "image"
+					? resources.resolveFile(`${name}.md`, path)
+					: null);
 			let url;
 			if (found && /\.md$/i.test(found)) {
 				if (node.type === "image") return;
 				url = noteUrls.get(found);
-				if (url) url += suffix;
+				if (url && suffix) {
+					const target = new URL(url, "https://vault.invalid");
+					const extra = new URL(suffix, "https://vault.invalid");
+					if (extra.search) target.search = extra.search;
+					if (extra.hash) target.hash = extra.hash;
+					// Keep readable Unicode in Markdown; the renderer encodes URLs.
+					url =
+						target.pathname +
+						target.search +
+						(extra.hash ? suffix.slice(suffix.indexOf("#")) : target.hash);
+				}
 			} else if (node.type !== "image" && original.startsWith("/") && !found)
 				return;
 			else url = resources.reference(original, path).url;
@@ -573,18 +590,36 @@ export function compileVault({ sourceRoot, root, dryRun = false, previewAt }) {
 			}
 			const start = node.position.start.offset;
 			const segment = body.slice(start, node.position.end.offset);
-			// Search after the label, so alt text and titles are never rewritten.
-			const destinationStart =
-				node.type === "definition"
-					? segment.indexOf("]:") + 2
-					: segment.lastIndexOf("](") + 2;
-			const offset = segment.indexOf(original, destinationStart);
-			if (offset >= 0)
-				replacements.push([
-					start + offset,
-					start + offset + original.length,
-					url,
-				]);
+			// AST URLs have already lost Markdown escapes. Locate the authored
+			// destination span instead of searching decoded text or matching titles.
+			let cursor = node.type === "image" ? 1 : 0;
+			let brackets = 0;
+			for (; cursor < segment.length; cursor++) {
+				if (segment[cursor] === "\\") cursor++;
+				else if (segment[cursor] === "[") brackets++;
+				else if (segment[cursor] === "]" && --brackets === 0) {
+					cursor += 2; // Skip ]( or ]: after the outer label.
+					break;
+				}
+			}
+			while (/\s/.test(segment[cursor] ?? "")) cursor++;
+			const angled = segment[cursor] === "<";
+			if (angled) cursor++;
+			const destinationStart = cursor;
+			let parentheses = 0;
+			for (; cursor < segment.length; cursor++) {
+				const char = segment[cursor];
+				if (char === "\\") cursor++;
+				else if (angled) {
+					if (char === ">") break;
+				} else if (char === "(") parentheses++;
+				else if (char === ")") {
+					if (parentheses === 0) break;
+					parentheses--;
+				} else if (/\s/.test(char)) break;
+			}
+			if (cursor > destinationStart)
+				replacements.push([start + destinationStart, start + cursor, url]);
 		});
 		let output = body;
 		for (const [start, end, url] of replacements.sort((a, b) => b[0] - a[0]))
