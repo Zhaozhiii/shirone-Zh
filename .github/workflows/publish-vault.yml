@@ -28,7 +28,7 @@ jobs:
     timeout-minutes: 30
     env:
       CI: true
-      SHIRONE_BUILD_PLATFORM: 'GitHub Actions + 阿里云'
+      SHIRONE_BUILD_PLATFORM: '阿里云'
       CONTENT_DIR: ${{ github.workspace }}/vault
       CONTENT_REPO_URL: https://github.com/Zhaozhiii/Obsidian-Vault.git
       CONTENT_READ_TOKEN: ${{ github.token }}
