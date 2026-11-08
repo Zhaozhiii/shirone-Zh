@@ -25,6 +25,17 @@ export const musicTracks: readonly TrackDescriptor[] = [
 		lrc: "https://api.injahow.cn/meting/?server=netease&type=lrc&id=1441581225",
 	},
 	{
+		id: "netease-3395527524",
+		title: "奢品先生: Sir Luxury",
+		artist: "Capper / 周震南",
+		source:
+			"https://api.injahow.cn/meting/?server=netease&type=url&id=3395527524",
+		cover:
+			"https://p2.music.126.net/kwLnTlKdLwOPvHprxfdj9w==/109951173701417629.jpg",
+		duration: 173,
+		lrc: "https://api.injahow.cn/meting/?server=netease&type=lrc&id=3395527524",
+	},
+	{
 		id: "netease-2692690431",
 		title: "Never see me again（Explicit）",
 		artist: "TheFloridaMan / GOAT",
